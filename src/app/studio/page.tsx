@@ -3,7 +3,7 @@
 
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupLabel, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { Card, CardContent } from '@/components/ui/card';
-import { SlidersHorizontal, Shapes, Clock, Cube, Layers, Camera } from 'lucide-react';
+import { SlidersHorizontal, Shapes, Clock, Box, Layers, Camera } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import Header from '@/components/layout/header';
 import Footer from '@/components/layout/footer';
@@ -27,7 +27,7 @@ export default function StudioPage() {
                            <SidebarMenu>
                                 <SidebarMenuItem>
                                     <SidebarMenuButton size="sm" isActive>
-                                        <Cube className="h-4 w-4" />
+                                        <Box className="h-4 w-4" />
                                         <span>Default Cube</span>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
