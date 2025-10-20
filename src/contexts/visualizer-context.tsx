@@ -80,31 +80,27 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   const cleanup = useCallback(() => {
     console.log("Cleaning up Tone.js objects");
     
-    // Stop transport and cancel events
     if (Tone.Transport.state !== 'stopped') {
         Tone.Transport.stop();
         Tone.Transport.cancel(0);
     }
     
-    // Disconnect and dispose player
     if (player.current) {
+        player.current.unsync();
         player.current.disconnect();
         player.current.dispose();
         player.current = null;
     }
     
-    // Dispose analyser
     if (analyserNode) {
         analyserNode.dispose();
         setAnalyserNode(null);
     }
 
-    // Cancel animation frame
     if(animationFrameId.current) {
       cancelAnimationFrame(animationFrameId.current);
     }
     
-    // Reset state
     setAudioSrc(null);
     setFileName(null);
     setIsPlaying(false);
@@ -113,7 +109,6 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   }, [analyserNode]);
   
   useEffect(() => {
-    // Create the stream destination once and reuse it.
     if (!streamDestinationRef.current) {
       streamDestinationRef.current = Tone.context.createMediaStreamDestination();
     }
@@ -139,7 +134,6 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
 
     try {
-      await Tone.start();
       const newPlayer = new Tone.Player({
           url,
           onload: () => {
@@ -150,13 +144,6 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
               
               const newAnalyser = new Tone.Analyser('fft', 1024);
               setAnalyserNode(newAnalyser);
-              
-              if(streamDestinationRef.current) {
-                player.current.connect(newAnalyser);
-                player.current.connect(streamDestinationRef.current);
-              }
-              player.current.toDestination();
-              isConnected.current = true;
               
               analyzeAndSetMood(trackName);
               setIsLoading(false);
@@ -231,6 +218,15 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       await Tone.start();
     }
 
+    if (!isConnected.current && analyserNode) {
+      player.current.connect(analyserNode);
+      if (streamDestinationRef.current) {
+        player.current.connect(streamDestinationRef.current);
+      }
+      player.current.toDestination();
+      isConnected.current = true;
+    }
+
     if (Tone.Transport.state === 'started') {
       Tone.Transport.pause();
       setIsPlaying(false);
@@ -248,7 +244,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
         setIsPlaying(true);
         animationFrameId.current = requestAnimationFrame(updateProgress);
     }
-  }, [updateProgress, progress, seek]);
+  }, [updateProgress, progress, seek, analyserNode]);
 
   const startRecording = (threeSceneRef: React.RefObject<ThreeSceneHandle>, quality: VideoQuality, onStop?: () => void) => {
     const canvas = threeSceneRef.current?.getCanvas();
@@ -362,3 +358,5 @@ export function useVisualizer(): VisualizerContextType {
   }
   return context;
 }
+
+    
