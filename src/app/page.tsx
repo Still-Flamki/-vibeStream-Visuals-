@@ -45,32 +45,34 @@ export default function HomePage() {
       <Header />
       <main className="flex-grow">
         {/* Hero Section */}
-        <section className="container mx-auto text-center py-20 md:py-32">
-          <div className="flex flex-col items-center">
-            <VibeStreamIcon className="h-24 w-24 text-primary mb-6" />
-            <h1 className="text-4xl md:text-6xl font-bold font-headline tracking-tight max-w-3xl">
-              See Your Sound. Feel the Flow.
-            </h1>
-            <p className="mt-6 max-w-2xl text-lg md:text-xl text-muted-foreground">
-              VibeStream turns any audio into a mesmerizing, 3D interactive visual experience. Create, customize, and share your unique audiovisual art with the world.
-            </p>
-            <div className="mt-10">
-              <Button asChild size="lg" className="text-lg py-7 px-10">
-                <Link href="/visualizer">
-                  Launch Visualizer <ArrowRight className="ml-2" />
-                </Link>
-              </Button>
+        <section className="container mx-auto py-20 md:py-32">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="flex flex-col items-start text-left">
+              <VibeStreamIcon className="h-24 w-24 text-primary mb-6" />
+              <h1 className="text-4xl md:text-6xl font-bold font-headline tracking-tight">
+                See Your Sound. Feel the Flow.
+              </h1>
+              <p className="mt-6 text-lg md:text-xl text-muted-foreground">
+                VibeStream turns any audio into a mesmerizing, 3D interactive visual experience. Create, customize, and share your unique audiovisual art with the world.
+              </p>
+              <div className="mt-10">
+                <Button asChild size="lg" className="text-lg py-7 px-10">
+                  <Link href="/visualizer">
+                    Launch Visualizer <ArrowRight className="ml-2" />
+                  </Link>
+                </Button>
+              </div>
             </div>
-          </div>
-          <div className="relative aspect-[16/9] rounded-2xl overflow-hidden shadow-2xl shadow-primary/20 border border-primary/20 mt-16 max-w-5xl mx-auto">
-              <Image 
-                src={heroImage.imageUrl}
-                alt={heroImage.description}
-                fill
-                className="object-cover"
-                data-ai-hint={heroImage.imageHint}
-                priority
-              />
+            <div className="relative aspect-[16/9] rounded-2xl overflow-hidden shadow-2xl shadow-primary/20 border border-primary/20">
+                <Image 
+                  src={heroImage.imageUrl}
+                  alt={heroImage.description}
+                  fill
+                  className="object-cover"
+                  data-ai-hint={heroImage.imageHint}
+                  priority
+                />
+            </div>
           </div>
         </section>
 
