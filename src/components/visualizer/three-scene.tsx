@@ -284,6 +284,7 @@ export default function ThreeScene({ analyserNode, isPlaying, mood, visualizatio
             break;
     }
     
+    const positionAttribute = geometry.getAttribute('position') as THREE.BufferAttribute;
     const colors = new Float32Array(positionAttribute.count * 3);
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     
@@ -294,8 +295,6 @@ export default function ThreeScene({ analyserNode, isPlaying, mood, visualizatio
         transparent: true,
         sizeAttenuation: true,
     });
-
-    const positionAttribute = geometry.getAttribute('position') as THREE.BufferAttribute;
 
     newVisual = new THREE.Points(geometry, material);
     visualRef.current = newVisual;
