@@ -109,13 +109,16 @@ export default function ThreeScene({ analyserNode, isPlaying, mood }: ThreeScene
                 
                 const newRadius = r + bassBoost * (frequencyData[i % frequencyData.length] / 20);
                 
+                let x = 0, y = 0, z = 0;
                 if (r > 0) {
-                    positionAttribute.setXYZ(
-                        i,
-                        initialPositions[i3] / r * newRadius,
-                        initialPositions[i3 + 1] / r * newRadius,
-                        initialPositions[i3 + 2] / r * newRadius
-                    );
+                    x = (initialPositions[i3] / r) * newRadius;
+                    y = (initialPositions[i3 + 1] / r) * newRadius;
+                    z = (initialPositions[i3 + 2] / r) * newRadius;
+                }
+
+                // Ensure values are not NaN before setting
+                if (!isNaN(x) && !isNaN(y) && !isNaN(z)) {
+                    positionAttribute.setXYZ(i, x, y, z);
                 }
 
 
