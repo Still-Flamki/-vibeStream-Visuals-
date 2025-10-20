@@ -67,11 +67,9 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       const buffer = player.current.buffer.get();
       if (!buffer) return;
 
-      // Cap the number of channels to a valid range (e.g., 1 to 32, but 2 is safe and common)
-      const numberOfChannels = Math.min(buffer.numberOfChannels, 2);
-
       // Use an offline context to analyze without playing
-      const offlineContext = new Tone.OfflineContext(buffer.duration, Tone.context.sampleRate, numberOfChannels);
+      // CORRECT FIX: Cap the number of channels directly in the constructor call.
+      const offlineContext = new Tone.OfflineContext(buffer.duration, Tone.context.sampleRate, Math.min(buffer.numberOfChannels, 2));
       const offlinePlayer = new Tone.Player(buffer);
       const fft = new Tone.FFT({ size: 2048, context: offlineContext.rawContext as any });
       offlinePlayer.connect(fft);
