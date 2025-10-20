@@ -43,6 +43,9 @@ const qualitySettings = {
 export const aspectRatios: { [key: string]: { label: string; value: number, isMobile: boolean } } = {
   '2.39:1': { label: 'Cinematic (2.39:1)', value: 2.39 / 1, isMobile: false },
   '16:9': { label: 'Widescreen (16:9)', value: 16 / 9, isMobile: false },
+  '9:16': { label: 'Portrait (9:16)', value: 9 / 16, isMobile: true },
+  '4:5': { label: 'Social (4:5)', value: 4 / 5, isMobile: true },
+  '1:1': { label: 'Square (1:1)', value: 1 / 1, isMobile: false },
 };
 
 export function VisualizerProvider({ children }: { children: ReactNode }) {
@@ -71,6 +74,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   const [isRecording, setIsRecording] = useState(false);
 
   const player = useRef<Tone.Player | null>(null);
+  const analyser = useRef<Tone.Analyser | null>(null);
   const animationFrameId = useRef<number>(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
@@ -92,10 +96,10 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
         player.current = null;
     }
     
-    if (analyserNode) {
-        analyserNode.disconnect();
-        analyserNode.dispose();
-        setAnalyserNode(null);
+    if (analyser.current) {
+        analyser.current.disconnect();
+        analyser.current.dispose();
+        analyser.current = null;
     }
 
     if(animationFrameId.current) {
@@ -107,7 +111,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     setIsPlaying(false);
     setProgress(0);
     isConnected.current = false;
-  }, [analyserNode]);
+  }, []);
   
   useEffect(() => {
     streamDestinationRef.current = Tone.context.createMediaStreamDestination();
@@ -134,12 +138,14 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       if (Tone.context.state !== 'running') {
         await Tone.start();
       }
-
+      
       const newPlayer = new Tone.Player({
           url,
           onload: () => {
               const newAnalyser = new Tone.Analyser('fft', 1024);
+              analyser.current = newAnalyser;
               player.current = newPlayer;
+              
               setAnalyserNode(newAnalyser);
               setAudioSrc(url);
               const trackName = name || url.split('/').pop() || "Audio Track";
@@ -212,23 +218,26 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const togglePlay = useCallback(async () => {
-    if (!player.current || !player.current.loaded || !analyserNode) {
+    if (!player.current || !player.current.loaded) {
       return;
     }
-
+  
     if (Tone.context.state !== 'running') {
       await Tone.start();
     }
-
+  
+    // Connect nodes on first play
     if (!isConnected.current) {
-      player.current.connect(analyserNode);
+      if (analyser.current) {
+        player.current.connect(analyser.current);
+      }
       if (streamDestinationRef.current) {
         player.current.connect(streamDestinationRef.current);
       }
       player.current.toDestination();
       isConnected.current = true;
     }
-
+  
     if (Tone.Transport.state === 'started') {
       Tone.Transport.pause();
       setIsPlaying(false);
@@ -240,15 +249,16 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
         seek(0);
       }
       
+      // Always ensure the player is synced before starting the transport
       if (player.current.state === 'stopped' || Tone.Transport.state === 'stopped') {
         player.current.sync().start(0);
       }
-
+  
       Tone.Transport.start();
       setIsPlaying(true);
       requestAnimationFrame(updateProgress);
     }
-  }, [updateProgress, progress, seek, analyserNode]);
+  }, [updateProgress, progress, seek]);
 
   const startRecording = (threeSceneRef: React.RefObject<ThreeSceneHandle>, quality: VideoQuality, onStop?: () => void) => {
     const canvas = threeSceneRef.current?.getCanvas();

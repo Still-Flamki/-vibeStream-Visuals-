@@ -99,7 +99,7 @@ export default function Visualizer() {
     }));
   };
 
-  const isDisabled = isRecording;
+  const isDisabled = isRecording || isLoading;
   const isMobileAspectRatio = currentAspectRatio ? currentAspectRatio.isMobile : false;
 
   const VisualizerContent = (
@@ -122,7 +122,7 @@ export default function Visualizer() {
           style={{aspectRatio: audioSrc ? numericAspectRatio : '16 / 9'}}
         >
           <CardContent className="p-0 h-full w-full">
-            {audioSrc && (
+            {audioSrc && !isLoading && (
               <div className="absolute top-4 right-4 z-10 flex gap-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -147,8 +147,13 @@ export default function Visualizer() {
               </div>
             )}
             
-            {audioSrc ? (
-              isMobileAspectRatio ? (
+            {audioSrc || isLoading ? (
+              isLoading ? (
+                 <div className="w-full h-full flex flex-col items-center justify-center bg-card/80 backdrop-blur-sm p-8 text-center border border-primary/20 rounded-lg">
+                    <Loader2 className="h-16 w-16 text-primary animate-spin" />
+                    <p className="mt-4 text-muted-foreground">Loading your audio...</p>
+                 </div>
+              ) : isMobileAspectRatio ? (
                 <div className="w-full h-full flex items-center justify-center bg-black p-4 md:p-8">
                   <PhoneFrame className="h-full w-auto">
                     {VisualizerContent}
@@ -170,7 +175,7 @@ export default function Visualizer() {
         </Card>
       </div>
       
-      {audioSrc && (
+      {audioSrc && !isLoading && (
           <Card className="bg-card/50 backdrop-blur-sm w-full max-w-7xl mx-auto">
             <CardContent className="p-4 flex items-center gap-6">
               <div className="flex-grow grid grid-cols-1 md:grid-cols-5 gap-6 items-center">
