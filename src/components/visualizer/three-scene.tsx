@@ -60,6 +60,126 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
     }
   }));
 
+  const updateVisuals = () => {
+    if (!visualRef.current) return;
+
+    const { analyserNode, isPlaying, mood, visualizationType, controls } = latestProps.current;
+    const positionAttribute = (visualRef.current.geometry as THREE.BufferGeometry).getAttribute('position');
+    const colorAttribute = (visualRef.current.geometry as THREE.BufferGeometry).getAttribute('color');
+    const initialPositions = initialPositionsRef.current!;
+
+    if (!positionAttribute || !initialPositions) return;
+
+    let bassBoost = 0;
+    let trebleBoost = 0;
+    let frequencyData: Float32Array | null = null;
+    
+    if (analyserNode && isPlaying) {
+      const rawFrequencyData = analyserNode.getValue();
+      if (rawFrequencyData instanceof Float32Array) {
+        frequencyData = rawFrequencyData;
+        const lowerHalf = frequencyData.slice(0, frequencyData.length / 4);
+        const lowerAvg = lowerHalf.reduce((a, b) => a + Math.abs(b), 0) / lowerHalf.length;
+        const upperHalf = frequencyData.slice(frequencyData.length / 2);
+        const upperAvg = upperHalf.reduce((a, b) => a + Math.abs(b), 0) / upperHalf.length;
+
+        bassBoost = isFinite(lowerAvg) ? (Math.abs(lowerAvg) / 100) * controls.bassSensitivity : 0;
+        trebleBoost = isFinite(upperAvg) ? (Math.abs(upperAvg) / 100) * controls.trebleSensitivity : 0;
+      }
+    }
+
+    const time = clockRef.current.getElapsedTime();
+    const { c1, c2 } = moodColors[mood];
+
+    for (let i = 0; i < positionAttribute.count; i++) {
+        const i3 = i * 3;
+        const ix = initialPositions[i3];
+        const iy = initialPositions[i3 + 1];
+        const iz = initialPositions[i3 + 2];
+
+        let x = ix, y = iy, z = iz;
+        const freqIndex = i % (frequencyData?.length || 1);
+        const freqValue = (frequencyData && isFinite(frequencyData[freqIndex])) ? frequencyData[freqIndex] : 0;
+
+        if (isPlaying) {
+            switch (visualizationType) {
+                case 'sphere_pulse': {
+                    const r = Math.sqrt(ix*ix + iy*iy + iz*iz);
+                    const displacement = bassBoost * (freqValue / 10);
+                    const newRadius = r + displacement;
+                    if (r > 0 && isFinite(newRadius)) {
+                        const ratio = newRadius / r;
+                        x = ix * ratio;
+                        y = iy * ratio;
+                        z = iz * ratio;
+                    }
+                    break;
+                }
+                case 'warp_drive': {
+                    const r = Math.sqrt(ix*ix + iy*iy);
+                    const angle = Math.atan2(iy, ix);
+                    const displacement = bassBoost * 50;
+                    x = r * Math.cos(angle + iz * 0.1 * bassBoost);
+                    y = r * Math.sin(angle + iz * 0.1 * bassBoost);
+                    z = (iz + time * 50 * (1 + bassBoost)) % 200 - 100;
+                    break;
+                }
+                case 'cosmic_web': {
+                    const r = Math.sqrt(ix*ix + iy*iy + iz*iz);
+                    const displacement = freqValue * bassBoost * 0.5;
+                    const noise = trebleBoost * 5 * (Math.sin(iy * 0.1 + time) + Math.cos(ix * 0.1 + time));
+                    if (r > 0 && isFinite(r + displacement + noise)) {
+                        const ratio = (r + displacement + noise) / r;
+                        x = ix * ratio;
+                        y = iy * ratio;
+                        z = iz * ratio;
+                    }
+                    break;
+                }
+                case 'tidal_wave': {
+                    const wave = Math.sin(ix * 0.2 + time * 2) * bassBoost * 20;
+                    const crest = Math.pow(Math.max(0, Math.sin(ix * 0.1 + time * 3)), 5) * trebleBoost * 30;
+                    const freqDisplacement = freqValue ? freqValue * 0.01 : 0;
+                    const newY = wave + crest + iy * (1 + freqDisplacement);
+                    if (isFinite(newY)) {
+                        y = newY;
+                    }
+                    break;
+                }
+            }
+        }
+
+        if (isFinite(x) && isFinite(y) && isFinite(z)) {
+            positionAttribute.setXYZ(i, x, y, z);
+        } else {
+            positionAttribute.setXYZ(i, ix, iy, iz); // Fallback to initial position
+        }
+
+        if (colorAttribute) {
+            const mixFactor = (iy / 100 + 1) / 2;
+            const color = c1.clone().lerp(c2, isNaN(mixFactor) ? 0.5 : mixFactor);
+            const colorBoost = 1 + trebleBoost * 2 * Math.random();
+            color.multiplyScalar(isFinite(colorBoost) ? colorBoost : 1);
+            colorAttribute.setXYZ(i, color.r, color.g, color.b);
+        }
+    }
+    
+    positionAttribute.needsUpdate = true;
+    if (colorAttribute) colorAttribute.needsUpdate = true;
+
+    if (visualRef.current) {
+      if (controls.rotation.direction === 'left') {
+        visualRef.current.rotation.y -= (0.0005 + bassBoost * 0.001) * controls.rotation.speed;
+      } else if (controls.rotation.direction === 'right') {
+        visualRef.current.rotation.y += (0.0005 + bassBoost * 0.001) * controls.rotation.speed;
+      } else {
+        visualRef.current.rotation.x = THREE.MathUtils.lerp(visualRef.current.rotation.x, controls.rotation.x, 0.1);
+        visualRef.current.rotation.y = THREE.MathUtils.lerp(visualRef.current.rotation.y, controls.rotation.y, 0.1);
+        visualRef.current.rotation.z = THREE.MathUtils.lerp(visualRef.current.rotation.z, controls.rotation.z, 0.1);
+      }
+    }
+  };
+
   // Setup and teardown
   useEffect(() => {
     if (!mountRef.current) return;
@@ -98,119 +218,7 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
         
         orbitControlsRef.current?.update();
 
-        if (visualRef.current) {
-            const { analyserNode, isPlaying, mood, visualizationType, controls } = latestProps.current;
-            const positionAttribute = (visualRef.current.geometry as THREE.BufferGeometry).getAttribute('position');
-            const colorAttribute = (visualRef.current.geometry as THREE.BufferGeometry).getAttribute('color');
-            const initialPositions = initialPositionsRef.current!;
-
-            if (positionAttribute && initialPositions) {
-                let bassBoost = 0;
-                let trebleBoost = 0;
-                let frequencyData: Float32Array | null = null;
-                
-                if (analyserNode && isPlaying) {
-                const rawFrequencyData = analyserNode.getValue();
-                if (rawFrequencyData instanceof Float32Array) {
-                    frequencyData = rawFrequencyData;
-                    const lowerHalf = frequencyData.slice(0, frequencyData.length / 4);
-                    const lowerAvg = lowerHalf.reduce((a, b) => a + Math.abs(b), 0) / lowerHalf.length;
-                    const upperHalf = frequencyData.slice(frequencyData.length / 2);
-                    const upperAvg = upperHalf.reduce((a, b) => a + Math.abs(b), 0) / upperHalf.length;
-
-                    bassBoost = isFinite(lowerAvg) ? (Math.abs(lowerAvg) / 100) * controls.bassSensitivity : 0;
-                    trebleBoost = isFinite(upperAvg) ? (Math.abs(upperAvg) / 100) * controls.trebleSensitivity : 0;
-                }
-                }
-
-                const time = clockRef.current.getElapsedTime();
-                const { c1, c2 } = moodColors[mood];
-
-                for (let i = 0; i < positionAttribute.count; i++) {
-                    const i3 = i * 3;
-                    const ix = initialPositions[i3];
-                    const iy = initialPositions[i3 + 1];
-                    const iz = initialPositions[i3 + 2];
-
-                    let x = ix, y = iy, z = iz;
-                    const freqIndex = i % (frequencyData?.length || 1);
-                    const freqValue = (frequencyData && isFinite(frequencyData[freqIndex])) ? frequencyData[freqIndex] : 0;
-
-                    if (isPlaying) {
-                        switch (visualizationType) {
-                            case 'sphere_pulse': {
-                                const r = Math.sqrt(ix*ix + iy*iy + iz*iz);
-                                const displacement = bassBoost * (freqValue / 10);
-                                const newRadius = r + displacement;
-                                if (r > 0 && isFinite(newRadius)) {
-                                    const ratio = newRadius / r;
-                                    x = ix * ratio;
-                                    y = iy * ratio;
-                                    z = iz * ratio;
-                                }
-                                break;
-                            }
-                            case 'warp_drive': {
-                                const r = Math.sqrt(ix*ix + iy*iy);
-                                const angle = Math.atan2(iy, ix);
-                                const displacement = bassBoost * 50;
-                                x = r * Math.cos(angle + iz * 0.1 * bassBoost);
-                                y = r * Math.sin(angle + iz * 0.1 * bassBoost);
-                                z = (iz + time * 50 * (1 + bassBoost)) % 200 - 100;
-                                break;
-                            }
-                            case 'cosmic_web': {
-                                const r = Math.sqrt(ix*ix + iy*iy + iz*iz);
-                                const displacement = freqValue * bassBoost * 0.5;
-                                const noise = trebleBoost * 5 * (Math.sin(iy * 0.1 + time) + Math.cos(ix * 0.1 + time));
-                                if (r > 0 && isFinite(r + displacement + noise)) {
-                                    const ratio = (r + displacement + noise) / r;
-                                    x = ix * ratio;
-                                    y = iy * ratio;
-                                    z = iz * ratio;
-                                }
-                                break;
-                            }
-                            case 'tidal_wave': {
-                                const wave = Math.sin(ix * 0.2 + time * 2) * bassBoost * 20;
-                                const crest = Math.pow(Math.max(0, Math.sin(ix * 0.1 + time * 3)), 5) * trebleBoost * 30;
-                                y = wave + crest + iy * (1 + freqValue * 0.01);
-                                break;
-                            }
-                        }
-                    }
-
-                    if (isFinite(x) && isFinite(y) && isFinite(z)) {
-                        positionAttribute.setXYZ(i, x, y, z);
-                    } else {
-                        positionAttribute.setXYZ(i, ix, iy, iz);
-                    }
-
-                    if (colorAttribute) {
-                        const mixFactor = (iy / 100 + 1) / 2;
-                        const color = c1.clone().lerp(c2, isNaN(mixFactor) ? 0.5 : mixFactor);
-                        const colorBoost = 1 + trebleBoost * 2 * Math.random();
-                        color.multiplyScalar(isFinite(colorBoost) ? colorBoost : 1);
-                        colorAttribute.setXYZ(i, color.r, color.g, color.b);
-                    }
-                }
-                
-                positionAttribute.needsUpdate = true;
-                if (colorAttribute) colorAttribute.needsUpdate = true;
-
-                if (visualRef.current) {
-                  if (controls.rotation.direction === 'left') {
-                    visualRef.current.rotation.y -= (0.0005 + bassBoost * 0.001) * controls.rotation.speed;
-                  } else if (controls.rotation.direction === 'right') {
-                    visualRef.current.rotation.y += (0.0005 + bassBoost * 0.001) * controls.rotation.speed;
-                  } else {
-                    visualRef.current.rotation.x = THREE.MathUtils.lerp(visualRef.current.rotation.x, controls.rotation.x, 0.1);
-                    visualRef.current.rotation.y = THREE.MathUtils.lerp(visualRef.current.rotation.y, controls.rotation.y, 0.1);
-                    visualRef.current.rotation.z = THREE.MathUtils.lerp(visualRef.current.rotation.z, controls.rotation.z, 0.1);
-                  }
-                }
-            }
-        }
+        updateVisuals();
         
         rendererRef.current.render(sceneRef.current, cameraRef.current);
     };
@@ -357,7 +365,7 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
     visualRef.current = newVisual;
     sceneRef.current.add(newVisual);
 
-  }, [visualizationType]);
+  }, [visualizationType, controls.particleSize]);
 
   // Update material based on controls
   useEffect(() => {
