@@ -63,16 +63,18 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     
     // We need to play a small snippet to get frequency data
     const originalState = {
-      isPlaying: isPlaying,
+      isPlaying: Tone.Transport.state === 'started',
       progress: player.current.progress,
+      isMuted: player.current.mute,
     };
 
     try {
       // Mute, play a snippet, analyze, then revert
       player.current.mute = true;
-      if (player.current.state !== 'started') {
+      if (Tone.Transport.state !== 'started') {
         await Tone.start();
         player.current.start();
+        Tone.Transport.start();
       }
       
       // Wait a moment for analysis
@@ -114,17 +116,21 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     } finally {
         // Revert player state
         if (player.current) {
-            player.current.mute = false;
             if (!originalState.isPlaying) {
                 player.current.stop();
-                player.current.seek(originalState.progress * player.current.buffer.duration);
+                Tone.Transport.stop();
+                const seekTime = originalState.progress * player.current.buffer.duration;
+                if(isFinite(seekTime)) {
+                    player.current.seek(seekTime);
+                }
             }
+            player.current.mute = originalState.isMuted;
         }
     }
-  }, [isPlaying, toast]);
+  }, [toast]);
 
   
-  const loadAudio = useCallback((url: string) => {
+  const loadAudio = useCallback(async (url: string) => {
     if (!player.current) return;
     setIsLoading(true);
     setAudioSrc(url);
@@ -135,16 +141,15 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     setIsPlaying(false);
     setProgress(0);
 
-    player.current.load(url)
-      .then(async () => {
-        setIsLoading(false);
-        await analyzeAndSetMood();
-      })
-      .catch(err => {
-        console.error("Error loading audio:", err);
-        toast({ variant: 'destructive', title: "Audio Error", description: "Failed to load audio." });
-        setIsLoading(false);
-      });
+    try {
+      await player.current.load(url);
+      setIsLoading(false);
+      await analyzeAndSetMood();
+    } catch(err) {
+      console.error("Error loading audio:", err);
+      toast({ variant: 'destructive', title: "Audio Error", description: "Failed to load audio." });
+      setIsLoading(false);
+    }
   }, [analyzeAndSetMood, toast]);
 
   const loadAudioFile = (file: File) => {
@@ -164,21 +169,17 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     if (!player.current || !player.current.loaded) return;
 
     if (isPlaying) {
-      player.current.pause();
       Tone.Transport.pause();
       setIsPlaying(false);
     } else {
       await Tone.start();
-      if (player.current.progress === 1) { 
+      if (player.current.progress >= 1) { 
           player.current.seek(0);
           setProgress(0);
       }
-      const startTime = player.current.progress * player.current.buffer.duration;
-      if (isFinite(startTime)) {
-        player.current.start(undefined, startTime);
-        Tone.Transport.start();
-        setIsPlaying(true);
-      }
+      player.current.start(undefined, player.current.progress * player.current.buffer.duration);
+      Tone.Transport.start();
+      setIsPlaying(true);
     }
   }, [isPlaying]);
 
