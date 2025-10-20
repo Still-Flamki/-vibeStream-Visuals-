@@ -104,36 +104,43 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   }, [cleanup]);
 
   const analyzeAndSetMood = useCallback(async () => {
-    if (!analyser.current) return;
+    if (!analyser.current || !player.current?.loaded) return;
 
     try {
-      // Get the frequency data directly from the live analyser
-      const frequencyData = analyser.current.getValue();
+      // Analyze a buffer to get a good overview
+      const buffer = player.current.buffer.get() as AudioBuffer;
+      const offlineContext = new OfflineAudioContext(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
+      const bufferSource = offlineContext.createBufferSource();
+      bufferSource.buffer = buffer;
+      const offlineAnalyser = offlineContext.createAnalyser();
+      offlineAnalyser.fftSize = 2048;
+      bufferSource.connect(offlineAnalyser);
+      bufferSource.start();
+      await offlineContext.startRendering();
       
-      if (frequencyData instanceof Float32Array) {
-        const fftSize = analyser.current.size;
-        const sampleRate = Tone.context.sampleRate;
-        const bassEndIndex = Math.floor(250 / (sampleRate / fftSize));
-        const midEndIndex = Math.floor(4000 / (sampleRate / fftSize));
-        
-        const bass = frequencyData.slice(0, bassEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
-        const mid = frequencyData.slice(bassEndIndex, midEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
-        const treble = frequencyData.slice(midEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
-        
-        const total = bass + mid + treble || 1;
-        const bassRatio = bass / total;
-        const trebleRatio = treble / total;
+      const frequencyData = new Float32Array(offlineAnalyser.frequencyBinCount);
+      offlineAnalyser.getFloatFrequencyData(frequencyData);
 
-        let newMood: Mood = 'chill';
-        if (bassRatio > 0.45) newMood = 'dark';
-        else if (trebleRatio > 0.3) newMood = 'energetic';
-        else if (bassRatio > 0.3 && trebleRatio < 0.2) newMood = 'chill';
-        else newMood = 'happy';
-        
-        setMood(newMood);
-      } else {
-        throw new Error("Could not retrieve valid frequency data.");
-      }
+      const fftSize = offlineAnalyser.fftSize;
+      const sampleRate = offlineContext.sampleRate;
+      const bassEndIndex = Math.floor(250 / (sampleRate / fftSize));
+      const midEndIndex = Math.floor(4000 / (sampleRate / fftSize));
+      
+      const bass = frequencyData.slice(0, bassEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
+      const mid = frequencyData.slice(bassEndIndex, midEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
+      const treble = frequencyData.slice(midEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
+      
+      const total = bass + mid + treble || 1;
+      const bassRatio = bass / total;
+      const trebleRatio = treble / total;
+
+      let newMood: Mood = 'chill';
+      if (bassRatio > 0.45) newMood = 'dark';
+      else if (trebleRatio > 0.3) newMood = 'energetic';
+      else if (bassRatio > 0.3 && trebleRatio < 0.2) newMood = 'chill';
+      else newMood = 'happy';
+      
+      setMood(newMood);
     } catch (error) {
       console.error("Error analyzing mood:", error);
       // Fallback to random mood if analysis fails
@@ -152,15 +159,18 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       analyser.current = new Tone.Analyser('fft', 2048);
       streamDestinationRef.current = Tone.context.createMediaStreamDestination();
       
-      // Route audio to both the main destination and the stream destination for recording
       player.current = new Tone.Player(url, async () => {
+        // This callback runs after the buffer is loaded
         setAudioSrc(url);
         setFileName(name || url.split('/').pop() || "Audio Track");
-        setTimeout(() => analyzeAndSetMood(), 500);
         setIsLoading(false);
-      }).fan(analyser.current, Tone.Destination, streamDestinationRef.current);
+        // Ensure player is connected before analyzing
+        if (player.current && analyser.current && streamDestinationRef.current) {
+            player.current.fan(analyser.current, Tone.Destination, streamDestinationRef.current);
+            analyzeAndSetMood();
+        }
+      });
       
-      player.current.toDestination();
       await Tone.loaded();
 
     } catch(err) {
