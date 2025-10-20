@@ -141,25 +141,25 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
           player.current.seek(0);
           setProgress(0);
       }
-      player.current.start(undefined, player.current.progress * player.current.buffer.duration);
-      Tone.Transport.start();
-      setIsPlaying(true);
+      const startTime = player.current.progress * player.current.buffer.duration;
+      if (isFinite(startTime)) {
+        player.current.start(undefined, startTime);
+        Tone.Transport.start();
+        setIsPlaying(true);
+      }
     }
   }, [isPlaying]);
 
   const seek = useCallback((progress: number) => {
     if (player.current && player.current.loaded) {
       const duration = player.current.buffer.duration;
-      const newTime = duration * progress;
-      if (isPlaying) {
-        player.current.seek(newTime);
-      } else {
-        // To show correct frame on seek while paused
+      if(isFinite(duration)) {
+        const newTime = duration * progress;
         player.current.seek(newTime);
         setProgress(progress);
       }
     }
-  }, [isPlaying]);
+  }, []);
 
   const value = {
     loadAudioFile,
