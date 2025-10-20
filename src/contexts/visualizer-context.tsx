@@ -122,7 +122,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       
       analyser.current = new Tone.Analyser('fft', 2048);
       
-      const newPlayer = new Tone.Player(url);
+      const newPlayer = new Tone.Player();
       
       // Fan out the player's output to both the analyser and the main destination
       newPlayer.fan(analyser.current, Tone.Destination);
@@ -183,7 +183,8 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       setIsPlaying(false);
       cancelAnimationFrame(animationFrameId.current);
     } else {
-      player.current.start(undefined, Tone.Transport.seconds);
+      // Sync the player to the transport
+      player.current.sync().start(0, Tone.Transport.seconds);
       Tone.Transport.start();
       setIsPlaying(true);
       animationFrameId.current = requestAnimationFrame(updateProgress);
@@ -194,16 +195,9 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     if (player.current && player.current.loaded) {
       const duration = player.current.buffer.duration;
       if(isFinite(duration) && isFinite(newProgress) && newProgress >= 0 && newProgress <= 1) {
-        const wasPlaying = Tone.Transport.state === 'started';
-        if (wasPlaying) {
-          player.current.stop();
-        }
         const newTime = duration * newProgress;
         Tone.Transport.seconds = newTime;
         setProgress(newProgress);
-        if (wasPlaying) {
-          player.current.start(undefined, newTime);
-        }
       }
     }
   }, []);
