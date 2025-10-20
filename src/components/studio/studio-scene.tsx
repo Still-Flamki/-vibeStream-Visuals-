@@ -7,21 +7,39 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 type Vector3 = { x: number; y: number; z: number; };
 
-interface StudioSceneProps {
-  backgroundColor: string;
+type SceneObject = {
+  id: string;
+  name: string;
   position: Vector3;
-  setPosition: React.Dispatch<React.SetStateAction<Vector3>>;
   rotation: Vector3;
   scale: Vector3;
+};
+
+interface StudioSceneProps {
+  backgroundColor: string;
+  objects: SceneObject[];
+  selectedObjectId: string | null;
+  onSelectObject: (id: string | null) => void;
+  onObjectChange: (id: string, newProps: Partial<SceneObject>) => void;
 }
 
-export function StudioScene({ backgroundColor, position, setPosition, rotation, scale }: StudioSceneProps) {
+export function StudioScene({ 
+    backgroundColor, 
+    objects,
+    selectedObjectId,
+    onSelectObject,
+    onObjectChange
+}: StudioSceneProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
-  const cubeRef = useRef<THREE.Mesh | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
-  const lastPanPosition = useRef<THREE.Vector3>(new THREE.Vector3());
+  const objectMeshes = useRef<Map<string, THREE.Mesh>>(new Map());
+  const raycaster = useRef(new THREE.Raycaster());
+  const mouse = useRef(new THREE.Vector2());
 
+  // Effect to set up the basic scene, camera, renderer, and controls
   useEffect(() => {
     if (!mountRef.current) return;
 
@@ -35,67 +53,33 @@ export function StudioScene({ backgroundColor, position, setPosition, rotation, 
     // Camera
     const aspect = currentMount.clientWidth / currentMount.clientHeight;
     const camera = new THREE.PerspectiveCamera(75, aspect > 0 ? aspect : 1, 0.1, 1000);
-    camera.position.set(3, 3, 5);
+    camera.position.set(5, 5, 8);
+    cameraRef.current = camera;
 
     // Renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     renderer.setSize(currentMount.clientWidth, currentMount.clientHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     currentMount.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
 
     // Controls
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.mouseButtons = {
-        LEFT: THREE.MOUSE.ROTATE,
-        MIDDLE: THREE.MOUSE.DOLLY,
-        RIGHT: THREE.MOUSE.PAN
-    };
+    controls.dampingFactor = 0.1;
+    controls.target.set(0, 1, 0);
     controlsRef.current = controls;
 
     // Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
     scene.add(ambientLight);
-
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
     directionalLight.position.set(5, 10, 7.5);
     scene.add(directionalLight);
-
-    // Default Cube
-    const geometry = new THREE.BoxGeometry(1, 1, 1); // Use 1x1x1 and control size via scale
-    const material = new THREE.MeshStandardMaterial({ color: 0x6f42c1 });
-    const cube = new THREE.Mesh(geometry, material);
-    cubeRef.current = cube;
-    scene.add(cube);
     
     // Grid Helper
-    const gridHelper = new THREE.GridHelper(10, 10, 0x444444, 0x444444);
+    const gridHelper = new THREE.GridHelper(20, 20, 0x555555, 0x555555);
     scene.add(gridHelper);
-
-
-    const handleControlChange = () => {
-        if (!controlsRef.current || !cubeRef.current) return;
-        
-        // This calculates the difference in the pan and applies it to the cube
-        const panDelta = new THREE.Vector3().subVectors(controls.target, lastPanPosition.current);
-        if (panDelta.lengthSq() > 0) { // Check if there was an actual pan
-            cubeRef.current.position.add(panDelta);
-            lastPanPosition.current.copy(controls.target);
-            // Update the state in the parent component
-            setPosition(prev => ({
-                x: cubeRef.current!.position.x,
-                y: cubeRef.current!.position.y,
-                z: cubeRef.current!.position.z,
-            }));
-        }
-    };
-    
-    controls.addEventListener('change', handleControlChange);
-    controls.addEventListener('start', () => {
-        if (controlsRef.current) {
-            lastPanPosition.current.copy(controlsRef.current.target);
-        }
-    });
 
     // Animation loop
     let animationFrameId: number;
@@ -106,61 +90,143 @@ export function StudioScene({ backgroundColor, position, setPosition, rotation, 
     };
     animate();
 
-    // Resize handler
+    // Event Listeners
     const handleResize = () => {
-      if (currentMount) {
+      if (currentMount && cameraRef.current && rendererRef.current) {
         const { clientWidth, clientHeight } = currentMount;
-        renderer.setSize(clientWidth, clientHeight);
-        camera.aspect = clientWidth / clientHeight;
-        camera.updateProjectionMatrix();
+        rendererRef.current.setSize(clientWidth, clientHeight);
+        cameraRef.current.aspect = clientWidth / clientHeight;
+        cameraRef.current.updateProjectionMatrix();
       }
     };
+
+    const handleMouseDown = (event: MouseEvent) => {
+        if (!currentMount) return;
+        
+        // Check if it's a left click
+        if (event.button !== 0) return;
+        
+        const rect = currentMount.getBoundingClientRect();
+        mouse.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.current.setFromCamera(mouse.current, camera);
+
+        const meshesToIntersect = Array.from(objectMeshes.current.values());
+        const intersects = raycaster.current.intersectObjects(meshesToIntersect);
+
+        if (intersects.length > 0) {
+            const firstIntersected = intersects[0].object;
+            if (firstIntersected.userData.id) {
+                onSelectObject(firstIntersected.userData.id);
+            }
+        } else {
+            onSelectObject(null);
+        }
+    };
+    
+    const handlePan = () => {
+        if (!controlsRef.current || !selectedObjectId) return;
+        const targetMesh = objectMeshes.current.get(selectedObjectId);
+        if (!targetMesh) return;
+
+        const newPosition = controlsRef.current.target;
+        onObjectChange(selectedObjectId, { position: { x: newPosition.x, y: newPosition.y, z: newPosition.z } });
+    };
+
     window.addEventListener('resize', handleResize);
-    // Initial resize after a short delay
+    currentMount.addEventListener('mousedown', handleMouseDown);
+    controls.addEventListener('change', handlePan);
     setTimeout(handleResize, 100);
 
     // Cleanup
     return () => {
       window.removeEventListener('resize', handleResize);
-      controls.removeEventListener('change', handleControlChange);
+      currentMount.removeEventListener('mousedown', handleMouseDown);
+      controls.removeEventListener('change', handlePan);
       cancelAnimationFrame(animationFrameId);
       if (currentMount) {
         currentMount.removeChild(renderer.domElement);
       }
       renderer.dispose();
-      geometry.dispose();
-      material.dispose();
+      scene.children.forEach(child => {
+        if (child instanceof THREE.Mesh) {
+            child.geometry.dispose();
+            if (Array.isArray(child.material)) {
+                child.material.forEach(m => m.dispose());
+            } else {
+                child.material.dispose();
+            }
+        }
+      });
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Update scene background color
   useEffect(() => {
     if (sceneRef.current) {
       sceneRef.current.background = new THREE.Color(backgroundColor);
     }
   }, [backgroundColor]);
-
+  
+  // Sync scene with objects prop
   useEffect(() => {
-    if (cubeRef.current) {
-      cubeRef.current.position.set(position.x, position.y, position.z);
-    }
-  }, [position]);
+    const scene = sceneRef.current;
+    if (!scene) return;
 
+    const currentIds = new Set(objects.map(o => o.id));
+    
+    // Remove old meshes
+    objectMeshes.current.forEach((mesh, id) => {
+        if (!currentIds.has(id)) {
+            scene.remove(mesh);
+            mesh.geometry.dispose();
+            (mesh.material as THREE.Material).dispose();
+            objectMeshes.current.delete(id);
+        }
+    });
+
+    // Add/Update meshes
+    objects.forEach(obj => {
+        let mesh = objectMeshes.current.get(obj.id);
+        if (!mesh) {
+            const geometry = new THREE.BoxGeometry(1, 1, 1);
+            const material = new THREE.MeshStandardMaterial({ color: 0x6f42c1 });
+            mesh = new THREE.Mesh(geometry, material);
+            mesh.userData.id = obj.id;
+            scene.add(mesh);
+            objectMeshes.current.set(obj.id, mesh);
+        }
+
+        mesh.position.set(obj.position.x, obj.position.y, obj.position.z);
+        mesh.rotation.set(
+            THREE.MathUtils.degToRad(obj.rotation.x),
+            THREE.MathUtils.degToRad(obj.rotation.y),
+            THREE.MathUtils.degToRad(obj.rotation.z)
+        );
+        mesh.scale.set(obj.scale.x, obj.scale.y, obj.scale.z);
+    });
+  }, [objects]);
+
+  // Handle selection outline and controls target
   useEffect(() => {
-    if (cubeRef.current) {
-      cubeRef.current.rotation.set(
-        THREE.MathUtils.degToRad(rotation.x),
-        THREE.MathUtils.degToRad(rotation.y),
-        THREE.MathUtils.degToRad(rotation.z)
-      );
-    }
-  }, [rotation]);
+    objectMeshes.current.forEach((mesh, id) => {
+        const material = mesh.material as THREE.MeshStandardMaterial;
+        const isSelected = id === selectedObjectId;
+        
+        if (material.emissive) {
+            material.emissive.set(isSelected ? 0xaaaa00 : 0x000000);
+        }
+    });
 
-  useEffect(() => {
-    if (cubeRef.current) {
-      cubeRef.current.scale.set(scale.x, scale.y, scale.z);
+    if (selectedObjectId && controlsRef.current) {
+        const selectedMesh = objectMeshes.current.get(selectedObjectId);
+        if (selectedMesh) {
+            controlsRef.current.target.copy(selectedMesh.position);
+        }
     }
-  }, [scale]);
+  }, [selectedObjectId]);
 
-  return <div ref={mountRef} className="w-full h-full" />;
+  return <div ref={mountRef} className="w-full h-full cursor-pointer" />;
 }
