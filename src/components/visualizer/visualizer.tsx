@@ -2,13 +2,15 @@
 "use client";
 
 import { useVisualizer } from '@/contexts/visualizer-context';
-import ThreeScene from './three-scene';
+import ThreeScene, { type ThreeSceneHandle } from './three-scene';
 import ControlsPanel from '../controls/controls-panel';
 import { Card, CardContent } from '../ui/card';
 import { VibeStreamIcon } from '../icons';
+import { useRef } from 'react';
 
 export default function Visualizer() {
   const { audioSrc, analyser, isPlaying, mood, visualizationType, controls } = useVisualizer();
+  const threeSceneRef = useRef<ThreeSceneHandle>(null);
 
   return (
     <div className="w-full max-w-7xl mx-auto grid grid-cols-1 xl:grid-cols-4 gap-6 p-4 md:p-6 h-full flex-grow">
@@ -16,6 +18,7 @@ export default function Visualizer() {
         <CardContent className="p-0 h-full w-full">
           {audioSrc ? (
             <ThreeScene 
+              ref={threeSceneRef}
               analyserNode={analyser} 
               isPlaying={isPlaying} 
               mood={mood} 
@@ -34,7 +37,7 @@ export default function Visualizer() {
         </CardContent>
       </Card>
       <div className="xl:col-span-1">
-        <ControlsPanel />
+        <ControlsPanel threeSceneRef={threeSceneRef} />
       </div>
     </div>
   );

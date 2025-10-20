@@ -23,6 +23,8 @@ interface VisualizerContextType {
   setVisualizationType: (type: VisualizationType) => void;
   controls: VisualizerControls;
   setControls: React.Dispatch<React.SetStateAction<VisualizerControls>>;
+  isRecording: boolean;
+  toggleRecording: (canvas: HTMLCanvasElement) => void;
 }
 
 const VisualizerContext = createContext<VisualizerContextType | undefined>(undefined);
@@ -42,10 +44,13 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     trebleSensitivity: 1.0,
     rotationSpeed: 0.5,
   });
+  const [isRecording, setIsRecording] = useState(false);
 
   const player = useRef<Tone.Player | null>(null);
   const analyser = useRef<Tone.Analyser | null>(null);
   const animationFrameId = useRef<number>(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
 
   // Cleanup function to dispose of Tone.js objects
   const cleanup = useCallback(() => {
@@ -128,7 +133,6 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       setAudioSrc(url);
       setFileName(name || url.split('/').pop() || "Audio Track");
       
-      // The analysis now happens after a short delay to allow the analyser to populate
       setTimeout(() => analyzeAndSetMood(), 500);
 
     } catch(err) {
@@ -205,6 +209,56 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const startRecording = (canvas: HTMLCanvasElement) => {
+    if (isRecording) return;
+    try {
+      const stream = canvas.captureStream(30); // 30 FPS
+      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'video/webm' });
+      
+      recordedChunksRef.current = [];
+      mediaRecorderRef.current.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          recordedChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorderRef.current.onstop = () => {
+        const blob = new Blob(recordedChunksRef.current, { type: 'video/mp4' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `vibestream-visuals-${new Date().toISOString()}.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        recordedChunksRef.current = [];
+      };
+
+      mediaRecorderRef.current.start();
+      setIsRecording(true);
+      toast({ title: 'Recording Started', description: 'Click the record button again to stop and download.' });
+    } catch (e) {
+      console.error("Recording failed to start:", e);
+      toast({ variant: 'destructive', title: 'Recording Error', description: 'Could not start recording. Your browser may not support this feature.' });
+    }
+  };
+
+  const stopRecording = () => {
+    if (!isRecording || !mediaRecorderRef.current) return;
+    mediaRecorderRef.current.stop();
+    setIsRecording(false);
+    toast({ title: 'Recording Stopped', description: 'Your download will begin shortly.' });
+  };
+  
+  const toggleRecording = (canvas: HTMLCanvasElement) => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording(canvas);
+    }
+  };
+
   const value: VisualizerContextType = {
     loadAudioFile,
     loadAudioUrl,
@@ -221,6 +275,8 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     setVisualizationType,
     controls,
     setControls,
+    isRecording,
+    toggleRecording,
   };
 
   return (

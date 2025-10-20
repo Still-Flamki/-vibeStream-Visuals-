@@ -10,12 +10,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
-import { Upload, Link, Play, Pause, Download, Share2, Loader2, Music, Sparkles } from 'lucide-react';
+import { Upload, Link, Play, Pause, Download, Share2, Loader2, Music, Sparkles, Video, CircleDot } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { VisualizationType } from '@/types';
 import { Label } from '../ui/label';
+import type { ThreeSceneHandle } from '../visualizer/three-scene';
 
-export default function ControlsPanel() {
+interface ControlsPanelProps {
+  threeSceneRef: React.RefObject<ThreeSceneHandle>;
+}
+
+export default function ControlsPanel({ threeSceneRef }: ControlsPanelProps) {
   const { 
     loadAudioFile, 
     loadAudioUrl,
@@ -29,7 +34,10 @@ export default function ControlsPanel() {
     visualizationType,
     setVisualizationType,
     controls,
-    setControls
+    setControls,
+    isRecording,
+    toggleRecording,
+    audioSrc,
   } = useVisualizer();
   const { toast } = useToast();
 
@@ -59,12 +67,12 @@ export default function ControlsPanel() {
     seek(value[0] / 100);
   };
 
-  const handleExport = (format: 'MP4' | 'GIF') => {
+  const handleExportGif = () => {
     toast({
       title: 'Exporting...',
-      description: `Your ${format} is being prepared. This feature is coming soon!`,
+      description: `GIF export is being prepared. This feature is coming soon!`,
     });
-    console.log(`Export to ${format} requested.`);
+    console.log(`Export to GIF requested.`);
   };
 
   const handleShare = () => {
@@ -74,6 +82,15 @@ export default function ControlsPanel() {
     });
     console.log('Share requested.');
   };
+  
+  const handleMp4Export = () => {
+    const canvas = threeSceneRef.current?.getCanvas();
+    if (!canvas) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Could not find visualization to record.' });
+      return;
+    }
+    toggleRecording(canvas);
+  }
 
   return (
     <Card className="h-full flex flex-col bg-card/80 backdrop-blur-sm">
@@ -82,7 +99,6 @@ export default function ControlsPanel() {
         <CardDescription>Load audio and shape your visuals.</CardDescription>
       </CardHeader>
       <CardContent className="flex-grow flex flex-col gap-3">
-        
         <div className="space-y-2">
           <h3 className="text-lg font-semibold flex items-center gap-2"><Sparkles className="text-primary"/> Visual Style</h3>
            <Select onValueChange={(value: VisualizationType) => setVisualizationType(value)} defaultValue={visualizationType}>
@@ -100,8 +116,8 @@ export default function ControlsPanel() {
 
         <Tabs defaultValue="upload">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="upload"><Upload className="mr-2" /> Upload</TabsTrigger>
-            <TabsTrigger value="url"><Link className="mr-2" /> URL</TabsTrigger>
+            <TabsTrigger value="upload"><Upload className="mr-2 h-4 w-4" /> Upload</TabsTrigger>
+            <TabsTrigger value="url"><Link className="mr-2 h-4 w-4" /> URL</TabsTrigger>
           </TabsList>
           <TabsContent value="upload" className="mt-4">
             <Input
@@ -133,62 +149,63 @@ export default function ControlsPanel() {
         </Tabs>
         
         {fileName && (
-          <>
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Music className="w-4 h-4" />
-                <span className="truncate flex-1">{fileName}</span>
-              </div>
-              <div className="flex items-center gap-4">
-                <Button onClick={togglePlay} size="icon" className="rounded-full w-14 h-14" disabled={isLoading || !fileName}>
-                  {isPlaying ? <Pause size={24} /> : <Play size={24} className="ml-1" />}
-                </Button>
-                <div className="w-full flex flex-col gap-2">
-                  <Slider value={[progress * 100]} onValueChange={handleSeek} disabled={isLoading || !fileName}/>
-                </div>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Music className="w-4 h-4" />
+              <span className="truncate flex-1">{fileName}</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <Button onClick={togglePlay} size="icon" className="rounded-full w-14 h-14" disabled={isLoading || !fileName}>
+                {isPlaying ? <Pause size={24} /> : <Play size={24} className="ml-1" />}
+              </Button>
+              <div className="w-full flex flex-col gap-2">
+                <Slider value={[progress * 100]} onValueChange={handleSeek} disabled={isLoading || !fileName}/>
               </div>
             </div>
           
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">Vibe:</span>
-                  {isLoading ? (
-                      <Loader2 className="animate-spin" />
-                  ) : (
-                      <Badge variant="secondary" className="capitalize text-base px-3 py-1 bg-accent/20 text-accent-foreground border-accent">{mood}</Badge>
-                  )}
-              </div>
-              
-              <div className="space-y-3 pt-1">
-                <div className='space-y-2'>
-                  <Label htmlFor='particleSize'>Particle Size</Label>
-                  <Slider id="particleSize" min={0.1} max={2} step={0.1} value={[controls.particleSize]} onValueChange={([val]) => setControls(c => ({...c, particleSize: val}))} />
-                </div>
-                <div className='space-y-2'>
-                  <Label htmlFor='bassSensitivity'>Bass Reactivity</Label>
-                  <Slider id="bassSensitivity" min={0} max={2} step={0.1} value={[controls.bassSensitivity]} onValueChange={([val]) => setControls(c => ({...c, bassSensitivity: val}))} />
-                </div>
-                <div className='space-y-2'>
-                  <Label htmlFor='trebleSensitivity'>Treble Reactivity</Label>
-                  <Slider id="trebleSensitivity" min={0} max={2} step={0.1} value={[controls.trebleSensitivity]} onValueChange={([val]) => setControls(c => ({...c, trebleSensitivity: val}))} />
-                </div>
-                 <div className='space-y-2'>
-                  <Label htmlFor='rotationSpeed'>Rotation Speed</Label>
-                  <Slider id="rotationSpeed" min={0} max={2} step={0.1} value={[controls.rotationSpeed]} onValueChange={([val]) => setControls(c => ({...c, rotationSpeed: val}))} />
-                </div>
-              </div>
-
+            <div className="flex items-center gap-2">
+                <span className="text-muted-foreground">Vibe:</span>
+                {isLoading ? (
+                    <Loader2 className="animate-spin" />
+                ) : (
+                    <Badge variant="secondary" className="capitalize text-base px-3 py-1 bg-accent/20 text-accent-foreground border-accent">{mood}</Badge>
+                )}
             </div>
-          </>
+            
+            <div className="space-y-3 pt-1">
+              <div className='space-y-2'>
+                <Label htmlFor='particleSize'>Particle Size</Label>
+                <Slider id="particleSize" min={0.1} max={2} step={0.1} value={[controls.particleSize]} onValueChange={([val]) => setControls(c => ({...c, particleSize: val}))} />
+              </div>
+              <div className='space-y-2'>
+                <Label htmlFor='bassSensitivity'>Bass Reactivity</Label>
+                <Slider id="bassSensitivity" min={0} max={2} step={0.1} value={[controls.bassSensitivity]} onValueChange={([val]) => setControls(c => ({...c, bassSensitivity: val}))} />
+              </div>
+              <div className='space-y-2'>
+                <Label htmlFor='trebleSensitivity'>Treble Reactivity</Label>
+                <Slider id="trebleSensitivity" min={0} max={2} step={0.1} value={[controls.trebleSensitivity]} onValueChange={([val]) => setControls(c => ({...c, trebleSensitivity: val}))} />
+              </div>
+               <div className='space-y-2'>
+                <Label htmlFor='rotationSpeed'>Rotation Speed</Label>
+                <Slider id="rotationSpeed" min={0} max={2} step={0.1} value={[controls.rotationSpeed]} onValueChange={([val]) => setControls(c => ({...c, rotationSpeed: val}))} />
+              </div>
+            </div>
+          </div>
         )}
 
-        <div className="space-y-2 mt-auto pt-2">
+        <div className="flex-grow" />
+
+        <div className="space-y-2 pt-2">
           <h3 className="text-lg font-semibold">Export & Share</h3>
           <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" onClick={() => handleExport('MP4')}><Download className="mr-2"/> MP4</Button>
-            <Button variant="outline" onClick={() => handleExport('GIF')}><Download className="mr-2"/> GIF</Button>
+            <Button variant={isRecording ? "destructive" : "outline"} onClick={handleMp4Export} disabled={!audioSrc}>
+              {isRecording 
+                ? <><CircleDot className="mr-2 text-red-500 animate-pulse" /> Stop</> 
+                : <><Video className="mr-2"/> MP4</>}
+            </Button>
+            <Button variant="outline" onClick={handleExportGif} disabled={!audioSrc}><Download className="mr-2"/> GIF</Button>
           </div>
-          <Button onClick={handleShare}><Share2 className="mr-2"/> Share Experience</Button>
+          <Button onClick={handleShare} disabled={!audioSrc}><Share2 className="mr-2"/> Share Experience</Button>
         </div>
       </CardContent>
     </Card>

@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { Analyser } from 'tone';
@@ -16,7 +16,11 @@ const moodColors: Record<Mood, { c1: THREE.Color; c2: THREE.Color }> = {
   energetic: { c1: new THREE.Color('#FF00FF'), c2: new THREE.Color('#FF4500') },
 };
 
-export default function ThreeScene({ analyserNode, isPlaying, mood, visualizationType, controls }: ThreeSceneProps) {
+export interface ThreeSceneHandle {
+  getCanvas: () => HTMLCanvasElement | null;
+}
+
+const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode, isPlaying, mood, visualizationType, controls }, ref) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -25,6 +29,12 @@ export default function ThreeScene({ analyserNode, isPlaying, mood, visualizatio
   const visualRef = useRef<THREE.Points | THREE.Mesh>();
   const initialPositionsRef = useRef<Float32Array>();
   const clockRef = useRef(new THREE.Clock());
+
+  useImperativeHandle(ref, () => ({
+    getCanvas: () => {
+      return rendererRef.current?.domElement || null;
+    }
+  }));
 
   // Animation and visual logic
   const animate = () => {
@@ -164,7 +174,7 @@ export default function ThreeScene({ analyserNode, isPlaying, mood, visualizatio
     cameraRef.current = camera;
 
     // Renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
     renderer.setSize(currentMount.clientWidth, currentMount.clientHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     rendererRef.current = renderer;
@@ -197,7 +207,13 @@ export default function ThreeScene({ analyserNode, isPlaying, mood, visualizatio
       }
       renderer.dispose();
       visualRef.current?.geometry.dispose();
-      (visualRef.current?.material as THREE.Material)?.dispose();
+      if (visualRef.current?.material) {
+        if (Array.isArray(visualRef.current.material)) {
+          visualRef.current.material.forEach(m => m.dispose());
+        } else {
+          (visualRef.current.material as THREE.Material).dispose();
+        }
+      }
       scene.clear();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -211,7 +227,13 @@ export default function ThreeScene({ analyserNode, isPlaying, mood, visualizatio
     if (visualRef.current) {
         sceneRef.current.remove(visualRef.current);
         visualRef.current.geometry.dispose();
-        (visualRef.current.material as THREE.Material | THREE.Material[]).dispose();
+         if (visualRef.current?.material) {
+            if (Array.isArray(visualRef.current.material)) {
+              visualRef.current.material.forEach(m => m.dispose());
+            } else {
+              (visualRef.current.material as THREE.Material).dispose();
+            }
+        }
     }
     
     let geometry: THREE.BufferGeometry;
@@ -304,4 +326,7 @@ export default function ThreeScene({ analyserNode, isPlaying, mood, visualizatio
   
 
   return <div ref={mountRef} className="w-full h-full" />;
-}
+});
+
+ThreeScene.displayName = 'ThreeScene';
+export default ThreeScene;
