@@ -76,6 +76,33 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
 
     const { analyserNode, isPlaying, mood, visualizationType, controls, colorMode } = latestProps.current;
     
+    if (visualizationType === 'audio_sword' && visualRef.current instanceof THREE.Group) {
+      if(analyserNode && isPlaying) {
+        const rawFrequencyData = analyserNode.getValue();
+        if (rawFrequencyData instanceof Float32Array && rawFrequencyData.length > 0) {
+            const lowerHalf = rawFrequencyData.slice(0, Math.floor(rawFrequencyData.length / 4));
+            let bassBoost = 0;
+            if (lowerHalf.length > 0) {
+                const lowerAvg = lowerHalf.reduce((a, b) => a + Math.abs(b), 0) / lowerHalf.length;
+                bassBoost = isFinite(lowerAvg) ? (Math.abs(lowerAvg) / 100) * controls.bassSensitivity : 0;
+            }
+            bassBoost = (isFinite(bassBoost) ? bassBoost : 0) * controls.bounceIntensity;
+            
+            const blade = visualRef.current.children[0] as THREE.Mesh;
+            const bladeMaterial = blade.material as THREE.MeshPhysicalMaterial;
+            bladeMaterial.emissiveIntensity = THREE.MathUtils.lerp(bladeMaterial.emissiveIntensity, bassBoost * 5, 0.2);
+        }
+      } else {
+        const blade = visualRef.current.children[0] as THREE.Mesh;
+        const bladeMaterial = blade.material as THREE.MeshPhysicalMaterial;
+        bladeMaterial.emissiveIntensity = THREE.MathUtils.lerp(bladeMaterial.emissiveIntensity, 0, 0.1);
+      }
+      
+      visualRef.current.rotation.y += 0.005 * controls.rotation.speed;
+      return;
+    }
+
+
     if (visualizationType === 'audio_city' && visualRef.current instanceof THREE.Group) {
       // Logic for Audio City (Group of Meshes)
       if (analyserNode && isPlaying) {
@@ -334,6 +361,13 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
     orbitControls.maxDistance = 250;
     orbitControlsRef.current = orbitControls;
 
+    // Lights
+    const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambient);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    dirLight.position.set(3, 5, 2);
+    scene.add(dirLight);
+
     // Animation and visual logic
     const animate = () => {
         animationFrameIdRef.current = requestAnimationFrame(animate);
@@ -403,7 +437,13 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
 
   // Visual type switching
   useEffect(() => {
-    if (!sceneRef.current || !cameraRef.current) return;
+    if (!sceneRef.current || !cameraRef.current || !orbitControlsRef.current) return;
+
+    // Reset camera and controls for specific views
+    cameraRef.current.position.set(0, 0, 100);
+    orbitControlsRef.current.minDistance = 5;
+    orbitControlsRef.current.maxDistance = 500;
+
 
     // Clean up previous visual
     if (visualRef.current) {
@@ -439,6 +479,45 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
     let positions: Float32Array;
 
     switch (visualizationType) {
+        case 'audio_sword': {
+            const sword = new THREE.Group();
+
+            const bladeMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0xc0c0c0,
+                metalness: 1,
+                roughness: 0.2,
+                reflectivity: 1,
+                clearcoat: 1,
+                clearcoatRoughness: 0.1,
+                emissive: moodColors[mood].c1,
+                emissiveIntensity: 0,
+            });
+            const blade = new THREE.Mesh(new THREE.BoxGeometry(0.5, 8, 1), bladeMaterial);
+            blade.position.y = 4;
+            sword.add(blade);
+
+            const guardMaterial = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.8, roughness: 0.4 });
+            const guard = new THREE.Mesh(new THREE.BoxGeometry(3, 0.5, 1.5), guardMaterial);
+            guard.position.y = 0;
+            sword.add(guard);
+
+            const handleMaterial = new THREE.MeshStandardMaterial({ color: 0x4b2e05, roughness: 0.8, metalness: 0.1 });
+            const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 3, 16), handleMaterial);
+            handle.position.y = -2;
+            sword.add(handle);
+
+            const pommelMaterial = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 1, roughness: 0.3 });
+            const pommel = new THREE.Mesh(new THREE.SphereGeometry(0.6, 16, 16), pommelMaterial);
+            pommel.position.y = -3.8;
+            sword.add(pommel);
+            
+            sword.scale.set(5, 5, 5); // Scale up the sword to be visible
+            sword.position.y = 10;
+            newVisual = sword;
+            cameraRef.current.position.set(0, 15, 30);
+            orbitControlsRef.current.target.set(0,10,0);
+            break;
+        }
         case 'digital_earth': {
             particleCount = 10000;
             positions = new Float32Array(particleCount * 3);
@@ -650,7 +729,7 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
             break;
     }
     
-    if (visualizationType !== 'audio_city' && positions) {
+    if ((visualizationType !== 'audio_city' && visualizationType !== 'audio_sword') && positions) {
         geometry = new THREE.BufferGeometry();
         initialPositionsRef.current = new Float32Array(positions);
         geometry.setAttribute('position', new THREE.BufferAttribute(initialPositionsRef.current.slice(), 3));
@@ -691,15 +770,17 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
     }
 
 
-  }, [visualizationType, controls.particleSize]);
+  }, [visualizationType, controls.particleSize, mood]);
 
   // Update material based on controls
   useEffect(() => {
     if (visualRef.current && 'material' in visualRef.current && visualRef.current.material) {
-        const material = (visualRef.current as THREE.Points).material;
-        if (material && 'size' in material) {
-            (material as THREE.PointsMaterial).size = controls.particleSize;
-            (material as THREE.PointsMaterial).needsUpdate = true;
+        if (visualRef.current instanceof THREE.Points) {
+            const material = visualRef.current.material as THREE.PointsMaterial;
+            if (material && 'size' in material) {
+                material.size = controls.particleSize;
+                material.needsUpdate = true;
+            }
         }
     }
   }, [controls.particleSize]);

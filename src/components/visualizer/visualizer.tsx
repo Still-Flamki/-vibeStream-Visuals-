@@ -139,6 +139,10 @@ export default function Visualizer() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectGroup>
+                              <SelectLabel>Objects</SelectLabel>
+                              <SelectItem value="audio_sword">Audio Sword</SelectItem>
+                            </SelectGroup>
+                            <SelectGroup>
                               <SelectLabel>Particle</SelectLabel>
                               <SelectItem value="sphere_pulse">Sphere Pulse</SelectItem>
                               <SelectItem value="warp_drive">Warp Drive</SelectItem>
