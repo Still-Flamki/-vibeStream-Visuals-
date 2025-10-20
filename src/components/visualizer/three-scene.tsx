@@ -19,9 +19,10 @@ const moodColors: Record<Mood, { c1: THREE.Color; c2: THREE.Color }> = {
 export interface ThreeSceneHandle {
   getCanvas: () => HTMLCanvasElement | null;
   resize: (width?: number, height?: number) => void;
+  setAspectRatio: (aspect: number) => void;
 }
 
-const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode, isPlaying, mood, visualizationType, controls }, ref) => {
+const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode, isPlaying, mood, visualizationType, controls, aspectRatio }, ref) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -32,10 +33,10 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
   const clockRef = useRef(new THREE.Clock());
 
   // Store a mutable reference to the props that the animation loop can access
-  const latestProps = useRef({ analyserNode, isPlaying, mood, visualizationType, controls });
+  const latestProps = useRef({ analyserNode, isPlaying, mood, visualizationType, controls, aspectRatio });
   useEffect(() => {
-    latestProps.current = { analyserNode, isPlaying, mood, visualizationType, controls };
-  }, [analyserNode, isPlaying, mood, visualizationType, controls]);
+    latestProps.current = { analyserNode, isPlaying, mood, visualizationType, controls, aspectRatio };
+  }, [analyserNode, isPlaying, mood, visualizationType, controls, aspectRatio]);
 
 
   useImperativeHandle(ref, () => ({
@@ -46,9 +47,33 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
       if (rendererRef.current && cameraRef.current && mountRef.current) {
         const targetWidth = width || mountRef.current.clientWidth;
         const targetHeight = height || mountRef.current.clientHeight;
-        cameraRef.current.aspect = targetWidth / targetHeight;
+        
+        const currentAspect = latestProps.current.aspectRatio;
+        cameraRef.current.aspect = currentAspect;
         cameraRef.current.updateProjectionMatrix();
+        
         rendererRef.current.setSize(targetWidth, targetHeight);
+        
+        const containerAspect = targetWidth / targetHeight;
+        if (containerAspect > currentAspect) {
+          // container is wider, use full height
+          rendererRef.current.setScissor(
+            (targetWidth - targetHeight * currentAspect) / 2, 0,
+            targetHeight * currentAspect, targetHeight
+          );
+        } else {
+          // container is taller, use full width
+          rendererRef.current.setScissor(
+            0, (targetHeight - targetWidth / currentAspect) / 2,
+            targetWidth, targetWidth / currentAspect
+          );
+        }
+      }
+    },
+    setAspectRatio: (aspect: number) => {
+      if (cameraRef.current) {
+        cameraRef.current.aspect = aspect;
+        cameraRef.current.updateProjectionMatrix();
       }
     }
   }));
@@ -72,6 +97,7 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
     renderer.setSize(currentMount.clientWidth, currentMount.clientHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setScissorTest(true);
     rendererRef.current = renderer;
     currentMount.appendChild(renderer.domElement);
 
@@ -204,12 +230,32 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
     let animationFrameId = requestAnimationFrame(animate);
 
     const handleResize = () => {
-      if (!currentMount) return;
-      camera.aspect = currentMount.clientWidth / currentMount.clientHeight;
+      if (!currentMount || !renderer.current || !camera.current) return;
+      
+      const newWidth = currentMount.clientWidth;
+      const newHeight = currentMount.clientHeight;
+
+      camera.aspect = latestProps.current.aspectRatio;
       camera.updateProjectionMatrix();
-      renderer.setSize(currentMount.clientWidth, currentMount.clientHeight);
+      renderer.setSize(newWidth, newHeight);
+
+      const containerAspect = newWidth / newHeight;
+      if (containerAspect > camera.aspect) {
+        // container is wider, use full height
+        renderer.setScissor(
+            (newWidth - newHeight * camera.aspect) / 2, 0,
+            newHeight * camera.aspect, newHeight
+        );
+      } else {
+        // container is taller, use full width
+        renderer.setScissor(
+            0, (newHeight - newWidth / camera.aspect) / 2,
+            newWidth, newWidth / camera.aspect
+        );
+      }
     };
     window.addEventListener('resize', handleResize);
+    handleResize();
 
     return () => {
       window.removeEventListener('resize', handleResize);
@@ -230,6 +276,30 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Update aspect ratio when prop changes
+  useEffect(() => {
+    if (!mountRef.current || !rendererRef.current || !cameraRef.current) return;
+    
+    const newWidth = mountRef.current.clientWidth;
+    const newHeight = mountRef.current.clientHeight;
+
+    cameraRef.current.aspect = aspectRatio;
+    cameraRef.current.updateProjectionMatrix();
+
+    const containerAspect = newWidth / newHeight;
+    if (containerAspect > aspectRatio) {
+      rendererRef.current.setScissor(
+        (newWidth - newHeight * aspectRatio) / 2, 0,
+        newHeight * aspectRatio, newHeight
+      );
+    } else {
+      rendererRef.current.setScissor(
+        0, (newHeight - newWidth / aspectRatio) / 2,
+        newWidth, newWidth / aspectRatio
+      );
+    }
+  }, [aspectRatio]);
 
   // Visual type switching
   useEffect(() => {
@@ -334,11 +404,11 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
     visualRef.current = newVisual;
     sceneRef.current.add(newVisual);
 
-  }, [visualizationType, controls.particleSize]);
+  }, [visualizationType]);
 
   // Update material based on controls
   useEffect(() => {
-    if (visualRef.current) {
+    if (visualRef.current && 'material' in visualRef.current) {
       const material = (visualRef.current as THREE.Points).material as THREE.PointsMaterial;
       if (material) {
         material.size = controls.particleSize * (visualizationType === 'tidal_wave' ? 1.5 : 1);

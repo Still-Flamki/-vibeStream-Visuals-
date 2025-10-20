@@ -27,14 +27,16 @@ interface VisualizerContextType {
   isRecording: boolean;
   startRecording: (threeSceneRef: React.RefObject<ThreeSceneHandle>, quality: VideoQuality) => boolean;
   stopRecording: () => void;
+  aspectRatio: number;
+  setAspectRatio: (ratio: number) => void;
 }
 
 const VisualizerContext = createContext<VisualizerContextType | undefined>(undefined);
 
 const qualitySettings = {
-  '720p': { width: 1280, height: 720, bitrate: 5 * 1000 * 1000 },
-  '1080p': { width: 1920, height: 1080, bitrate: 10 * 1000 * 1000 },
-  '4k': { width: 3840, height: 2160, bitrate: 25 * 1000 * 1000 },
+  '720p': { vertical: 720, bitrate: 5 * 1000 * 1000 },
+  '1080p': { vertical: 1080, bitrate: 8 * 1000 * 1000 },
+  '4k': { vertical: 2160, bitrate: 20 * 1000 * 1000 },
 };
 
 export function VisualizerProvider({ children }: { children: ReactNode }) {
@@ -46,6 +48,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [visualizationType, setVisualizationType] = useState<VisualizationType>('sphere_pulse');
+  const [aspectRatio, setAspectRatio] = useState(16/9);
   const [controls, setControls] = useState<VisualizerControls>({
     particleSize: 0.8,
     bassSensitivity: 1.0,
@@ -232,9 +235,11 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     if (isRecording || !streamDestinationRef.current || !canvas) return false;
 
     const settings = qualitySettings[quality];
+    const width = Math.round(settings.vertical * aspectRatio);
+    const height = settings.vertical;
 
     try {
-      threeSceneRef.current?.resize(settings.width, settings.height);
+      threeSceneRef.current?.resize(width, height);
 
       const videoStream = canvas.captureStream(30); // 30 FPS
       const audioStream = streamDestinationRef.current.stream;
@@ -262,7 +267,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `vibestream-visuals-${quality}-${new Date().toISOString()}.webm`;
+        a.download = `vibestream-visuals-${quality}-${width}x${height}-${new Date().toISOString()}.webm`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -307,6 +312,8 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     isRecording,
     startRecording,
     stopRecording,
+    aspectRatio,
+    setAspectRatio,
   };
 
   return (

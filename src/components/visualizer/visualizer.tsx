@@ -1,19 +1,28 @@
+
 "use client";
 
 import { useVisualizer } from '@/contexts/visualizer-context';
 import ThreeScene, { type ThreeSceneHandle } from './three-scene';
 import { Card, CardContent } from '../ui/card';
 import { VibeStreamIcon } from '../icons';
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '../ui/dropdown-menu';
-import { Video, Download, Share2, CircleDot, Sparkles, Loader2 } from 'lucide-react';
+import { Video, Download, Share2, CircleDot, Sparkles, Loader2, Crop } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { VideoQuality, VisualizationType } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Badge } from '../ui/badge';
 import { Label } from '../ui/label';
 import { Slider } from '../ui/slider';
+
+const aspectRatios: { [key: string]: { label: string; value: number } } = {
+  '16:9': { label: 'Widescreen (16:9)', value: 16 / 9 },
+  '9:16': { label: 'Portrait (9:16)', value: 9 / 16 },
+  '1:1': { label: 'Square (1:1)', value: 1 / 1 },
+  '4:5': { label: 'Social (4:5)', value: 4 / 5 },
+  '2.39:1': { label: 'Cinematic (2.39:1)', value: 2.39 / 1 },
+};
 
 export default function Visualizer() {
   const { 
@@ -29,9 +38,19 @@ export default function Visualizer() {
     isRecording,
     startRecording,
     stopRecording,
+    aspectRatio,
+    setAspectRatio,
   } = useVisualizer();
   const threeSceneRef = useRef<ThreeSceneHandle>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const handleResize = () => {
+      threeSceneRef.current?.resize();
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleRecordClick = (quality: VideoQuality) => {
     if (!threeSceneRef.current?.getCanvas()) {
@@ -74,7 +93,7 @@ export default function Visualizer() {
             <div className="absolute top-4 right-4 z-10 flex gap-2">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant={isRecording ? "destructive" : "outline"} size="icon" disabled={!audioSrc} className="bg-card/80 backdrop-blur-sm">
+                  <Button variant={isRecording ? "destructive" : "outline"} size="icon" disabled={!audioSrc} className="bg-card/50 backdrop-blur-sm">
                       {isRecording 
                         ? <CircleDot className="text-red-500 animate-pulse" /> 
                         : <Video />}
@@ -86,10 +105,10 @@ export default function Visualizer() {
                   <DropdownMenuItem onClick={() => handleRecordClick('4k')} disabled={isRecording}>Record 4K</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button variant="outline" size="icon" onClick={handleExportGif} disabled={isDisabled || !audioSrc} className="bg-card/80 backdrop-blur-sm">
+              <Button variant="outline" size="icon" onClick={handleExportGif} disabled={isDisabled || !audioSrc} className="bg-card/50 backdrop-blur-sm">
                 <Download />
               </Button>
-              <Button variant="outline" size="icon" onClick={handleShare} disabled={isDisabled || !audioSrc} className="bg-card/80 backdrop-blur-sm">
+              <Button variant="outline" size="icon" onClick={handleShare} disabled={isDisabled || !audioSrc} className="bg-card/50 backdrop-blur-sm">
                 <Share2 />
               </Button>
             </div>
@@ -103,6 +122,7 @@ export default function Visualizer() {
               mood={mood} 
               visualizationType={visualizationType} 
               controls={controls}
+              aspectRatio={aspectRatio}
             />
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center bg-card/80 backdrop-blur-sm p-8 text-center border border-primary/20 rounded-lg">
@@ -117,34 +137,49 @@ export default function Visualizer() {
       </Card>
       
       {audioSrc && (
-          <Card>
+          <Card className="bg-card/50 backdrop-blur-sm">
             <CardContent className="p-4 flex items-center gap-6">
-              <div className="flex-grow grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                  <div className='space-y-3'>
+              <div className="flex-grow grid grid-cols-1 md:grid-cols-4 gap-6 items-center">
+                  <div className='space-y-3 md:col-span-1'>
                       <div className="space-y-2">
                           <h3 className="text-lg font-semibold flex items-center gap-2"><Sparkles className="text-primary"/> Visual Style</h3>
                           <Select onValueChange={(value: VisualizationType) => setVisualizationType(value)} defaultValue={visualizationType} disabled={isDisabled}>
-                          <SelectTrigger>
-                              <SelectValue placeholder="Select a visualization" />
-                          </SelectTrigger>
-                          <SelectContent>
-                              <SelectItem value="sphere_pulse">Sphere Pulse</SelectItem>
-                              <SelectItem value="warp_drive">Warp Drive</SelectItem>
-                              <SelectItem value="cosmic_web">Cosmic Web</SelectItem>
-                              <SelectItem value="tidal_wave">Tidal Wave</SelectItem>
-                          </SelectContent>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a visualization" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="sphere_pulse">Sphere Pulse</SelectItem>
+                                <SelectItem value="warp_drive">Warp Drive</SelectItem>
+                                <SelectItem value="cosmic_web">Cosmic Web</SelectItem>
+                                <SelectItem value="tidal_wave">Tidal Wave</SelectItem>
+                            </SelectContent>
                           </Select>
                       </div>
-                      <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">Vibe:</span>
+                       <div className="space-y-2">
+                          <h3 className="text-lg font-semibold flex items-center gap-2"><Crop className="text-primary"/> Aspect Ratio</h3>
+                          <Select onValueChange={(value: string) => setAspectRatio(aspectRatios[value].value)} defaultValue={Object.keys(aspectRatios).find(key => aspectRatios[key].value === aspectRatio)} disabled={isDisabled}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select an aspect ratio" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {Object.entries(aspectRatios).map(([key, {label}]) => (
+                                  <SelectItem key={key} value={key}>{label}</SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                      </div>
+                  </div>
+                  <div className='space-y-3 md:col-span-1'>
+                    <div className="flex items-center gap-2 pt-5">
+                      <span className="text-muted-foreground text-lg">Vibe:</span>
                       {isLoading ? (
                           <Loader2 className="animate-spin" />
                       ) : (
-                          <Badge variant="secondary" className="capitalize text-base px-3 py-1 bg-accent/20 text-accent-foreground border-accent/50">{mood}</Badge>
+                          <Badge variant="secondary" className="capitalize text-lg px-3 py-1 bg-accent/20 text-accent-foreground border-accent/50">{mood}</Badge>
                       )}
                       </div>
                   </div>
-                  <div className='space-y-3'>
+                  <div className='space-y-3 md:col-span-1'>
                     <div className='space-y-1'>
                       <Label htmlFor='particleSize' className="text-xs">Particle Size</Label>
                       <Slider id="particleSize" min={0.1} max={2} step={0.1} value={[controls.particleSize]} onValueChange={([val]) => setControls(c => ({...c, particleSize: val}))} disabled={isDisabled} />
@@ -154,7 +189,7 @@ export default function Visualizer() {
                       <Slider id="rotationSpeed" min={0} max={2} step={0.1} value={[controls.rotationSpeed]} onValueChange={([val]) => setControls(c => ({...c, rotationSpeed: val}))} disabled={isDisabled} />
                     </div>
                   </div>
-                  <div className='space-y-3'>
+                  <div className='space-y-3 md:col-span-1'>
                     <div className='space-y-1'>
                       <Label htmlFor='bassSensitivity' className="text-xs">Bass Reactivity</Label>
                       <Slider id="bassSensitivity" min={0} max={2} step={0.1} value={[controls.bassSensitivity]} onValueChange={([val]) => setControls(c => ({...c, bassSensitivity: val}))} disabled={isDisabled} />

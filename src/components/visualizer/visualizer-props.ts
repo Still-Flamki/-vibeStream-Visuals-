@@ -15,4 +15,5 @@ export type ThreeSceneProps = {
   mood: Mood;
   visualizationType: VisualizationType;
   controls: VisualizerControls;
+  aspectRatio: number;
 };
