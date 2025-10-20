@@ -234,23 +234,18 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
                     }
                     break;
                 }
-                // case 'audio_city': { This logic is now handled separately for THREE.Group
-                //     const barFreqIndex = Math.floor(i / 4) % (frequencyData?.length || 1);
-                //     const barRawFreqValue = (frequencyData && isFinite(frequencyData[barFreqIndex])) ? frequencyData[barFreqIndex] : -Infinity;
-                //     const barFreqValue = barRawFreqValue > -100 ? (barRawFreqValue + 100) / 100 : 0;
-                //     const height = Math.max(0, barFreqValue * 100 * bassBoost);
-                    
-                //     if (i % 4 === 1 || i % 4 === 2) {
-                //         y = iy + height;
-                //     } else {
-                //         y = iy;
-                //     }
-                //     break;
-                // }
                  case 'aurora_borealis': {
                     const wave1 = Math.sin(ix * 0.01 + time * 0.5 + iz * 0.005) * bassBoost * 30;
                     const wave2 = Math.cos(ix * 0.005 - time * 0.3 + iz * 0.01) * trebleBoost * 20;
                     y = iy + wave1 + wave2;
+                    break;
+                }
+                case 'rhythmic_tunnel': {
+                    const radius = 20 + bassBoost * 20 + freqValue * 10;
+                    const angle = Math.atan2(iy, ix);
+                    x = Math.cos(angle) * radius;
+                    y = Math.sin(angle) * radius;
+                    z = (iz + time * 50) % 200 - 100;
                     break;
                 }
             }
@@ -455,10 +450,7 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
 
                 const isLand = (Math.sin(phi * 5) * Math.cos(theta * 7) + Math.sin(phi * 3) * Math.sin(theta * 5)) > 0.3;
                 
-                let r = radius;
-                if (!isLand) {
-                    r = radius * 0.98; // Place water slightly inside
-                }
+                let r = isLand ? radius : radius * 0.98; // Place water slightly inside
                 
                 positions[i3] = r * Math.cos(theta) * Math.sin(phi);
                 positions[i3 + 1] = r * Math.sin(theta) * Math.sin(phi);
@@ -569,8 +561,8 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
                     const boxMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
                     const bar = new THREE.Mesh(boxGeometry, boxMaterial);
                     
-                    const x = (i / (gridSize -1) - 0.5) * citySize;
-                    const z = (j / (gridSize -1) - 0.5) * citySize;
+                    const x = (i / (gridSize -1) - 0.5) * citySize + (Math.random() - 0.5) * 5;
+                    const z = (j / (gridSize -1) - 0.5) * citySize + (Math.random() - 0.5) * 5;
 
                     bar.position.set(x, 0.5, z);
                     bar.scale.y = 0.01; // Start flat
@@ -604,6 +596,25 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
                 }
             }
             positions = new Float32Array(allPositions);
+            break;
+        }
+        case 'rhythmic_tunnel': {
+            const numRings = 50;
+            const segmentsPerRing = 64;
+            const tunnelLength = 200;
+            particleCount = numRings * segmentsPerRing;
+            positions = new Float32Array(particleCount * 3);
+            for (let i = 0; i < numRings; i++) {
+                const z = (i / numRings - 0.5) * tunnelLength;
+                for (let j = 0; j < segmentsPerRing; j++) {
+                    const angle = (j / segmentsPerRing) * Math.PI * 2;
+                    const idx = (i * segmentsPerRing + j) * 3;
+                    positions[idx] = Math.cos(angle) * 20; // Initial radius
+                    positions[idx + 1] = Math.sin(angle) * 20;
+                    positions[idx + 2] = z;
+                }
+            }
+            cameraRef.current.position.set(0, 0, 0); // Fly through the tunnel
             break;
         }
         case 'tidal_wave':

@@ -143,12 +143,16 @@ export default function Visualizer() {
                               <SelectItem value="sphere_pulse">Sphere Pulse</SelectItem>
                               <SelectItem value="warp_drive">Warp Drive</SelectItem>
                               <SelectItem value="cosmic_web">Cosmic Web</SelectItem>
-                              <SelectItem value="tidal_wave">Tidal Wave</SelectItem>
                               <SelectItem value="torus_knot">Torus Knot</SelectItem>
-                              <SelectItem value="audio_city">Audio City</SelectItem>
                               <SelectItem value="galaxy">Galaxy</SelectItem>
                               <SelectItem value="heartbeat">Heartbeat</SelectItem>
                               <SelectItem value="digital_earth">Digital Earth</SelectItem>
+                            </SelectGroup>
+                             <SelectGroup>
+                              <SelectLabel>Geometric</SelectLabel>
+                              <SelectItem value="audio_city">Audio City</SelectItem>
+                              <SelectItem value="tidal_wave">Tidal Wave</SelectItem>
+                              <SelectItem value="rhythmic_tunnel">Rhythmic Tunnel</SelectItem>
                             </SelectGroup>
                             <SelectGroup>
                               <SelectLabel>Atmospheric</SelectLabel>
