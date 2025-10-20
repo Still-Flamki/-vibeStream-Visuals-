@@ -114,7 +114,9 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   
   useEffect(() => {
     // Create the stream destination once and reuse it.
-    streamDestinationRef.current = Tone.context.createMediaStreamDestination();
+    if (!streamDestinationRef.current) {
+      streamDestinationRef.current = Tone.context.createMediaStreamDestination();
+    }
     return () => cleanup();
   }, [cleanup]);
 
@@ -137,6 +139,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
 
     try {
+      await Tone.start();
       const newPlayer = new Tone.Player({
           url,
           onload: () => {
@@ -144,6 +147,17 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
               setAudioSrc(url);
               const trackName = name || url.split('/').pop() || "Audio Track";
               setFileName(trackName);
+              
+              const newAnalyser = new Tone.Analyser('fft', 1024);
+              setAnalyserNode(newAnalyser);
+              
+              if(streamDestinationRef.current) {
+                player.current.connect(newAnalyser);
+                player.current.connect(streamDestinationRef.current);
+              }
+              player.current.toDestination();
+              isConnected.current = true;
+              
               analyzeAndSetMood(trackName);
               setIsLoading(false);
               toast({ title: "Audio Ready", description: `"${trackName}" is loaded. Press play to start.` });
@@ -215,18 +229,6 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     
     if (Tone.context.state !== 'running') {
       await Tone.start();
-    }
-
-    if (!isConnected.current) {
-      const newAnalyser = new Tone.Analyser('fft', 1024);
-      setAnalyserNode(newAnalyser);
-      
-      if(streamDestinationRef.current) {
-        player.current.connect(newAnalyser);
-        player.current.connect(streamDestinationRef.current);
-      }
-      player.current.toDestination();
-      isConnected.current = true;
     }
 
     if (Tone.Transport.state === 'started') {
