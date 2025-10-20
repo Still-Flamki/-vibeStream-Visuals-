@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useRef, useEffect, useCallback, type ReactNode } from 'react';
 import * as Tone from 'tone';
-import { analyzeMood } from '@/ai/flows/mood-detection';
+import { detectMood } from '@/ai/ai-mood-detection';
 import type { Mood } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
@@ -10,6 +10,7 @@ interface VisualizerContextType {
   loadAudioFile: (file: File) => void;
   loadAudioUrl: (url: string) => void;
   togglePlay: () => void;
+  seek: (progress: number) => void;
   player: Tone.Player | null;
   analyser: Tone.Analyser | null;
   audioSrc: string | null;
@@ -36,6 +37,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     player.current = new Tone.Player().toDestination();
+    player.current.connect(new Tone.Limiter(-6).toDestination());
     analyser.current = new Tone.Analyser('fft', 2048);
     player.current.connect(analyser.current);
 
@@ -43,6 +45,12 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       if (player.current?.state === "started" && player.current.buffer.duration > 0) {
         const currentProgress = player.current.progress;
         setProgress(currentProgress);
+        if (currentProgress >= 1) {
+          setIsPlaying(false);
+          player.current.stop();
+          Tone.Transport.stop();
+          setProgress(0);
+        }
       }
     }, "16n").start(0);
 
@@ -53,12 +61,13 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const handleAudioLoad = useCallback(async (trackInfo: string) => {
+  const handleAudioLoad = useCallback(async (audioDataUri: string) => {
     try {
       if (player.current) {
         setIsLoading(false);
         setIsAiLoading(true);
-        const newMood = await analyzeMood(trackInfo);
+        const result = await detectMood({ audioDataUri });
+        const newMood = result.mood as Mood; // Ensure mood is of type Mood
         setMood(newMood);
         setIsAiLoading(false);
         toast({ title: "Mood Detected", description: `The vibe is ${newMood}!` });
@@ -70,7 +79,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     }
   }, [toast]);
   
-  const loadAudio = useCallback((url: string, trackInfo: string) => {
+  const loadAudio = useCallback((url: string, file?: File) => {
     if (!player.current) return;
     setIsLoading(true);
     setAudioSrc(url);
@@ -82,7 +91,22 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     setProgress(0);
 
     player.current.load(url)
-      .then(() => handleAudioLoad(trackInfo))
+      .then(async () => {
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const dataUri = e.target?.result as string;
+            handleAudioLoad(dataUri);
+          };
+          reader.readAsDataURL(file);
+        } else {
+          // For URLs, we can't get the data URI easily due to CORS.
+          // We can just set a mood or try a simpler analysis.
+          setIsLoading(false);
+          setMood('energetic'); // Default mood for URLs
+          toast({ title: "Mood set", description: "Default vibe for remote tracks is energetic." });
+        }
+      })
       .catch(err => {
         console.error("Error loading audio:", err);
         toast({ variant: 'destructive', title: "Audio Error", description: "Failed to load audio." });
@@ -92,7 +116,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
   const loadAudioFile = (file: File) => {
     const url = URL.createObjectURL(file);
-    loadAudio(url, file.name);
+    loadAudio(url, file);
   };
 
   const loadAudioUrl = (url: string) => {
@@ -101,33 +125,47 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
         toast({ variant: 'destructive', title: "Invalid URL", description: "Please enter a valid URL." });
         return;
     }
-    loadAudio(url, url.split('/').pop() || 'remote track');
+    loadAudio(url);
   };
   
   const togglePlay = useCallback(async () => {
-    if (!player.current || player.current.state === 'stopped') {
-      if (audioSrc) {
-        await Tone.start();
-        player.current?.start();
-        Tone.Transport.start();
-        setIsPlaying(true);
-      }
-    } else if (player.current.state === 'started') {
+    if (!player.current || !player.current.loaded) return;
+
+    if (isPlaying) {
       player.current.pause();
       Tone.Transport.pause();
       setIsPlaying(false);
-    } else if (player.current.state === 'paused') {
+    } else {
       await Tone.start();
-      player.current.start();
+      if (player.current.progress === 1) { // If at the end, restart
+          player.current.seek(0);
+          setProgress(0);
+      }
+      player.current.start(undefined, player.current.progress * player.current.buffer.duration);
       Tone.Transport.start();
       setIsPlaying(true);
     }
-  }, [audioSrc]);
+  }, [isPlaying]);
+
+  const seek = useCallback((progress: number) => {
+    if (player.current && player.current.loaded) {
+      const duration = player.current.buffer.duration;
+      const newTime = duration * progress;
+      if (isPlaying) {
+        player.current.seek(newTime);
+      } else {
+        // To show correct frame on seek while paused
+        player.current.seek(newTime);
+        setProgress(progress);
+      }
+    }
+  }, [isPlaying]);
 
   const value = {
     loadAudioFile,
     loadAudioUrl,
     togglePlay,
+    seek,
     player: player.current,
     analyser: analyser.current,
     audioSrc,

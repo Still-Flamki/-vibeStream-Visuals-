@@ -20,7 +20,8 @@ export default function ControlsPanel() {
     mood,
     isLoading,
     isAiLoading,
-    progress
+    progress,
+    seek
   } = useVisualizer();
   const { toast } = useToast();
 
@@ -44,6 +45,10 @@ export default function ControlsPanel() {
         description: 'Please enter a URL to stream from.',
       });
     }
+  };
+  
+  const handleSeek = (value: number[]) => {
+    seek(value[0] / 100);
   };
 
   const handleExport = (format: 'MP4' | 'GIF') => {
@@ -110,7 +115,7 @@ export default function ControlsPanel() {
               {isPlaying ? <Pause size={24} /> : <Play size={24} className="ml-1" />}
             </Button>
             <div className="w-full flex flex-col gap-2">
-              <Slider value={[progress * 100]} disabled={isLoading}/>
+              <Slider value={[progress * 100]} onValueChange={handleSeek} disabled={isLoading}/>
             </div>
           </div>
         </div>

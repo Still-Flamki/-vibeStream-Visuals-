@@ -86,20 +86,20 @@ export default function ThreeScene({ analyserNode, isPlaying, mood }: ThreeScene
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
 
-      if (analyserNode && isPlaying) {
+      if (analyserNode && isPlaying && particles) {
         const frequencyData = analyserNode.getValue();
         const positionAttribute = particles.geometry.getAttribute('position');
         const colorAttribute = particles.geometry.getAttribute('color');
         const initialPositions = initialPositionsRef.current!;
 
-        if (frequencyData instanceof Float32Array) {
+        if (frequencyData instanceof Float32Array && positionAttribute && colorAttribute && initialPositions) {
             const lowerHalf = frequencyData.slice(0, frequencyData.length / 2);
             const lowerAvg = lowerHalf.reduce((a, b) => a + Math.abs(b), 0) / lowerHalf.length;
             const upperHalf = frequencyData.slice(frequencyData.length / 2);
             const upperAvg = upperHalf.reduce((a, b) => a + Math.abs(b), 0) / upperHalf.length;
 
-            const bassBoost = (lowerAvg / 100) * 20;
-            const trebleBoost = (upperAvg / 100) * 1.5;
+            const bassBoost = isFinite(lowerAvg) ? (lowerAvg / 100) * 20 : 0;
+            const trebleBoost = isFinite(upperAvg) ? (upperAvg / 100) * 1.5 : 0;
 
             const {c1, c2} = moodColors[mood];
 
@@ -111,38 +111,40 @@ export default function ThreeScene({ analyserNode, isPlaying, mood }: ThreeScene
                 const iz = initialPositions[i3 + 2];
                 const r = Math.sqrt(ix*ix + iy*iy + iz*iz);
 
-                const freqValue = frequencyData[i % frequencyData.length] || 0;
-                const displacement = isFinite(bassBoost) ? bassBoost * (freqValue / 20) : 0;
+                const freqIndex = i % frequencyData.length;
+                const freqValue = isFinite(frequencyData[freqIndex]) ? frequencyData[freqIndex] : 0;
+                const displacement = bassBoost * (freqValue / 20);
                 
                 const newRadius = r + displacement;
-                
+
                 let x = ix, y = iy, z = iz;
+
                 if (r > 0 && isFinite(newRadius)) {
                     const ratio = newRadius / r;
                     x = ix * ratio;
                     y = iy * ratio;
                     z = iz * ratio;
                 }
-
-                // Final check to prevent any NaN values from slipping through.
+                
                 if (isFinite(x) && isFinite(y) && isFinite(z)) {
                   positionAttribute.setXYZ(i, x, y, z);
                 } else {
-                  positionAttribute.setXYZ(i, ix, iy, iz); // Fallback to initial position
+                  positionAttribute.setXYZ(i, ix, iy, iz);
                 }
 
                 const mixFactor = (iy / r + 1) / 2;
                 const color = c1.clone().lerp(c2, isNaN(mixFactor) ? 0.5 : mixFactor);
-                const colorBoost = isFinite(trebleBoost) ? 1 + trebleBoost * Math.random() : 1;
-                color.multiplyScalar(colorBoost);
+                const colorBoost = 1 + trebleBoost * Math.random();
+                color.multiplyScalar(isFinite(colorBoost) ? colorBoost : 1);
                 colorAttribute.setXYZ(i, color.r, color.g, color.b);
             }
             positionAttribute.needsUpdate = true;
             colorAttribute.needsUpdate = true;
         }
       }
-      particles.rotation.y += 0.0005;
-
+      if (particles) {
+        particles.rotation.y += 0.0005;
+      }
       controls.update();
       renderer.render(scene, camera);
     };
@@ -160,7 +162,9 @@ export default function ThreeScene({ analyserNode, isPlaying, mood }: ThreeScene
     return () => {
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animationFrameId);
-      currentMount.removeChild(renderer.domElement);
+      if (currentMount && renderer.domElement) {
+        currentMount.removeChild(renderer.domElement);
+      }
       renderer.dispose();
       geometry.dispose();
       material.dispose();
