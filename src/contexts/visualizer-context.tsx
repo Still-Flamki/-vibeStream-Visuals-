@@ -7,6 +7,7 @@ import type { Mood, VisualizationType, VideoQuality } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import type { VisualizerControls } from '@/components/visualizer/visualizer-props';
 import { type ThreeSceneHandle } from '@/components/visualizer/three-scene';
+import { analyzeMood } from '@/ai/flows/mood-detection';
 
 interface VisualizerContextType {
   loadAudioFile: (file: File) => void;
@@ -41,11 +42,9 @@ const qualitySettings = {
 
 export const aspectRatios: { [key: string]: { label: string; value: number, isMobile: boolean } } = {
   '16:9': { label: 'Widescreen (16:9)', value: 16 / 9, isMobile: true },
-  '9:16': { label: 'Portrait (9:16)', value: 9 / 16, isMobile: true },
-  '1:1': { label: 'Square (1:1)', value: 1 / 1, isMobile: false },
-  '4:5': { label: 'Social (4:5)', value: 4 / 5, isMobile: true },
   '2.39:1': { label: 'Cinematic (2.39:1)', value: 2.39 / 1, isMobile: true },
 };
+
 
 export function VisualizerProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
@@ -104,50 +103,10 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   }, [cleanup]);
 
   const analyzeAndSetMood = useCallback(async () => {
-    if (!analyser.current || !player.current?.loaded) return;
-
-    try {
-      // Analyze a buffer to get a good overview
-      const buffer = player.current.buffer.get() as AudioBuffer;
-      const offlineContext = new OfflineAudioContext(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
-      const bufferSource = offlineContext.createBufferSource();
-      bufferSource.buffer = buffer;
-      const offlineAnalyser = offlineContext.createAnalyser();
-      offlineAnalyser.fftSize = 2048;
-      bufferSource.connect(offlineAnalyser);
-      bufferSource.start();
-      await offlineContext.startRendering();
-      
-      const frequencyData = new Float32Array(offlineAnalyser.frequencyBinCount);
-      offlineAnalyser.getFloatFrequencyData(frequencyData);
-
-      const fftSize = offlineAnalyser.fftSize;
-      const sampleRate = offlineContext.sampleRate;
-      const bassEndIndex = Math.floor(250 / (sampleRate / fftSize));
-      const midEndIndex = Math.floor(4000 / (sampleRate / fftSize));
-      
-      const bass = frequencyData.slice(0, bassEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
-      const mid = frequencyData.slice(bassEndIndex, midEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
-      const treble = frequencyData.slice(midEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
-      
-      const total = bass + mid + treble || 1;
-      const bassRatio = bass / total;
-      const trebleRatio = treble / total;
-
-      let newMood: Mood = 'chill';
-      if (bassRatio > 0.45) newMood = 'dark';
-      else if (trebleRatio > 0.3) newMood = 'energetic';
-      else if (bassRatio > 0.3 && trebleRatio < 0.2) newMood = 'chill';
-      else newMood = 'happy';
-      
-      setMood(newMood);
-    } catch (error) {
-      console.error("Error analyzing mood:", error);
-      // Fallback to random mood if analysis fails
-      const moods: Mood[] = ['happy', 'dark', 'chill', 'energetic'];
-      setMood(moods[Math.floor(Math.random() * moods.length)]);
-    }
-  }, []);
+    if (!player.current?.loaded) return;
+    const newMood = await analyzeMood(fileName || 'track');
+    setMood(newMood);
+  }, [fileName]);
 
   const loadAudio = useCallback(async (url: string, name?: string) => {
     setIsLoading(true);
@@ -155,19 +114,16 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     
     try {
       await Tone.start();
-      
       analyser.current = new Tone.Analyser('fft', 2048);
       streamDestinationRef.current = Tone.context.createMediaStreamDestination();
       
       player.current = new Tone.Player(url, async () => {
-        // This callback runs after the buffer is loaded
-        setAudioSrc(url);
-        setFileName(name || url.split('/').pop() || "Audio Track");
-        setIsLoading(false);
-        // Ensure player is connected before analyzing
         if (player.current && analyser.current && streamDestinationRef.current) {
             player.current.fan(analyser.current, Tone.Destination, streamDestinationRef.current);
-            analyzeAndSetMood();
+            setAudioSrc(url);
+            setFileName(name || url.split('/').pop() || "Audio Track");
+            await analyzeAndSetMood();
+            setIsLoading(false);
         }
       });
       
@@ -176,8 +132,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     } catch(err) {
       console.error("Error loading audio:", err);
       toast({ variant: 'destructive', title: "Audio Error", description: "Failed to load audio. The file format may be unsupported or the URL may be invalid/protected by CORS." });
-      setAudioSrc(null);
-      setFileName(null);
+      cleanup();
       setIsLoading(false);
     }
   }, [analyzeAndSetMood, toast, cleanup]);
@@ -202,10 +157,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
             setProgress(Math.min(currentProgress, 1));
         }
         
-        // Check if playback is effectively over
         if (currentProgress >= 1) {
-            // This doesn't stop the transport, just the animation loop requests
-            // The transport will be stopped by the 'stop' event on the player or scheduled event
             setIsPlaying(false);
             setProgress(1);
             if (animationFrameId.current) {
@@ -241,7 +193,6 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
         cancelAnimationFrame(animationFrameId.current);
       }
     } else {
-       // If the track is at the end, restart it.
         if (progress >= 1) {
           seek(0);
         }
