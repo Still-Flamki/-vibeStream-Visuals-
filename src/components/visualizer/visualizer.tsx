@@ -18,14 +18,7 @@ import { Slider } from '../ui/slider';
 import { PhoneFrame } from './phone-frame';
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
 import * as THREE from 'three';
-
-const aspectRatios: { [key: string]: { label: string; value: number, isMobile: boolean } } = {
-  '16:9': { label: 'Widescreen (16:9)', value: 16 / 9, isMobile: true },
-  '9:16': { label: 'Portrait (9:16)', value: 9 / 16, isMobile: true },
-  '1:1': { label: 'Square (1:1)', value: 1 / 1, isMobile: false },
-  '4:5': { label: 'Social (4:5)', value: 4 / 5, isMobile: true },
-  '2.39:1': { label: 'Cinematic (2.39:1)', value: 2.39 / 1, isMobile: true },
-};
+import { aspectRatios } from '@/contexts/visualizer-context';
 
 export default function Visualizer() {
   const { 
@@ -48,6 +41,7 @@ export default function Visualizer() {
   const { toast } = useToast();
 
   const numericAspectRatio = aspectRatios[aspectRatio]?.value || 16/9;
+  const currentAspectRatio = aspectRatios[aspectRatio];
 
   useEffect(() => {
     const handleResize = () => {
@@ -100,14 +94,14 @@ export default function Visualizer() {
   };
 
   const handleContinuousRotation = (direction: 'left' | 'right' | 'none') => {
-    setControls(c => ({
+     setControls(c => ({
       ...c,
       rotation: { ...c.rotation, direction, x: 0, y: 0, z: 0 }
     }));
   };
 
   const isDisabled = isRecording;
-  const isMobileAspectRatio = aspectRatios[aspectRatio]?.isMobile;
+  const isMobileAspectRatio = currentAspectRatio ? currentAspectRatio.isMobile : false;
 
   const VisualizerContent = (
       <ThreeScene 
@@ -122,10 +116,10 @@ export default function Visualizer() {
   );
 
   return (
-    <div className="w-full flex-grow flex flex-col gap-4 min-h-0 items-center justify-center">
-      <div className="w-full h-full flex items-center justify-center p-4">
+    <div className="w-full flex-grow flex flex-col gap-4 min-h-0">
+      <div className="flex-grow w-full h-full flex items-center justify-center p-4 min-h-0">
         <Card 
-          className="relative rounded-lg overflow-hidden bg-black/50 shadow-2xl shadow-primary/20 w-full max-w-7xl max-h-full"
+          className="relative rounded-lg overflow-hidden bg-black/50 shadow-2xl shadow-primary/20 w-full max-w-full h-full max-h-full"
           style={{aspectRatio: audioSrc ? numericAspectRatio : '16 / 9'}}
         >
           <CardContent className="p-0 h-full w-full">
@@ -178,7 +172,7 @@ export default function Visualizer() {
       </div>
       
       {audioSrc && (
-          <Card className="bg-card/50 backdrop-blur-sm w-full max-w-7xl">
+          <Card className="bg-card/50 backdrop-blur-sm w-full max-w-7xl mx-auto">
             <CardContent className="p-4 flex items-center gap-6">
               <div className="flex-grow grid grid-cols-1 md:grid-cols-5 gap-6 items-center">
                   <div className='space-y-3 md:col-span-1'>
@@ -227,7 +221,7 @@ export default function Visualizer() {
                   <div className='space-y-3 md:col-span-2'>
                      <div className='space-y-1'>
                       <Label className="text-xs">Rotation Speed</Label>
-                      <Slider min={0} max={2} step={0.1} value={[controls.rotation.speed]} onValueChange={([val]) => setControls(c => ({...c, rotation: {...c.rotation, speed: val}}))} disabled={isDisabled} />
+                      <Slider min={0} max={2} step={0.1} value={[controls.rotation.speed]} onValueChange={([val]) => setControls(c => ({...c, rotation: {...c.rotation, speed: val}}))} disabled={isDisabled || controls.rotation.direction === 'none'} />
                     </div>
                     <div className='flex gap-2 items-center'>
                       <Label className="text-xs">Direction</Label>
