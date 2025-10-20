@@ -4,7 +4,6 @@
 import React, { useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import type { Analyser } from 'tone';
 import type { Mood, VisualizationType } from '@/types';
 import type { VisualizerControls, ThreeSceneProps } from './visualizer-props';
 
@@ -211,6 +210,7 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
     orbitControlsRef.current = orbitControls;
 
     // Animation and visual logic
+    let animationFrameId: number;
     const animate = () => {
         animationFrameId = requestAnimationFrame(animate);
 
@@ -224,7 +224,7 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
     };
 
     // Start animation loop
-    let animationFrameId = requestAnimationFrame(animate);
+    animate();
 
     const handleResize = () => {
         if (ref.current) {
