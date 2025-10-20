@@ -621,10 +621,11 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
         default:
             const size = 200;
             const segments = 100;
-            positions = new Float32Array(segments * segments * 3 * 2); // 2 triangles per quad
+            particleCount = segments * segments * 6;
+            positions = new Float32Array(particleCount * 3);
             let idx = 0;
-             for (let i = 0; i < segments -1; i++) {
-                for (let j = 0; j < segments -1; j++) {
+             for (let i = 0; i < segments; i++) {
+                for (let j = 0; j < segments; j++) {
                     const x1 = (i / segments - 0.5) * size;
                     const z1 = (j / segments - 0.5) * size;
                     const x2 = ((i+1) / segments - 0.5) * size;
@@ -704,5 +705,7 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
 
 ThreeScene.displayName = 'ThreeScene';
 export default ThreeScene;
+
+    
 
     
