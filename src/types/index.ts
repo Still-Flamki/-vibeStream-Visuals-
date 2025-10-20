@@ -8,3 +8,4 @@ export type VideoQuality = '720p' | '1080p' | '4k';
 export type ColorMode = 'mood' | 'multicolor' | 'crimson' | 'ocean' | 'lime' | 'gold' | 'violet' | 'pink';
 
     
+
