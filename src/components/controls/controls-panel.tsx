@@ -8,14 +8,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
-import { Upload, Link, Play, Pause, Video, Share2, Loader2, Music, Sparkles, ChevronDown, CircleDot, Download } from 'lucide-react';
+import { Upload, Link, Play, Pause, Loader2, Music, Sparkles } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { VisualizationType, VideoQuality } from '@/types';
-import { Label } from '../ui/label';
+import type { VisualizationType } from '@/types';
 import type { ThreeSceneHandle } from '../visualizer/three-scene';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ScrollArea } from '../ui/scroll-area';
 
 interface ControlsPanelProps {
@@ -29,17 +26,12 @@ export default function ControlsPanel({ threeSceneRef }: ControlsPanelProps) {
     togglePlay, 
     isPlaying,
     fileName,
-    mood,
     isLoading,
     progress,
     seek,
     visualizationType,
     setVisualizationType,
-    controls,
-    setControls,
     isRecording,
-    startRecording,
-    stopRecording,
     audioSrc,
   } = useVisualizer();
   const { toast } = useToast();
@@ -69,38 +61,7 @@ export default function ControlsPanel({ threeSceneRef }: ControlsPanelProps) {
   const handleSeek = (value: number[]) => {
     seek(value[0] / 100);
   };
-
-  const handleExportGif = () => {
-    toast({
-      title: 'Exporting...',
-      description: `GIF export is being prepared. This feature is coming soon!`,
-    });
-    console.log(`Export to GIF requested.`);
-  };
-
-  const handleShare = () => {
-    toast({
-      title: 'Sharing...',
-      description: 'Your creation is ready to be shared. This feature is coming soon!',
-    });
-    console.log('Share requested.');
-  };
   
-  const handleRecordClick = (quality: VideoQuality) => {
-    if (!threeSceneRef.current?.getCanvas()) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Could not find visualization to record.' });
-      return;
-    }
-    if (isRecording) {
-      stopRecording();
-      toast({ title: 'Recording Stopped', description: `Your ${quality} download will begin shortly.` });
-    } else {
-      if (startRecording(threeSceneRef, quality)) {
-        toast({ title: `Recording Started (${quality})`, description: 'Click the record button again to stop and download.' });
-      }
-    }
-  }
-
   const isDisabled = isRecording || isLoading;
 
   return (
@@ -111,7 +72,7 @@ export default function ControlsPanel({ threeSceneRef }: ControlsPanelProps) {
       </CardHeader>
       <CardContent className="flex-grow flex flex-col gap-4 overflow-hidden">
         <ScrollArea className="flex-grow pr-6 -mr-6">
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div className="space-y-2">
               <h3 className="text-lg font-semibold flex items-center gap-2"><Sparkles className="text-primary"/> Visual Style</h3>
                <Select onValueChange={(value: VisualizationType) => setVisualizationType(value)} defaultValue={visualizationType} disabled={isDisabled}>
@@ -177,65 +138,10 @@ export default function ControlsPanel({ threeSceneRef }: ControlsPanelProps) {
                     <Slider value={[progress * 100]} onValueChange={handleSeek} disabled={isDisabled || !fileName}/>
                   </div>
                 </div>
-              
-                <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground">Vibe:</span>
-                    {isLoading ? (
-                        <Loader2 className="animate-spin" />
-                    ) : (
-                        <Badge variant="secondary" className="capitalize text-base px-3 py-1 bg-accent/20 text-accent-foreground border-accent">{mood}</Badge>
-                    )}
-                </div>
-                
-                <div className="space-y-4 pt-2">
-                  <div className='space-y-2'>
-                    <Label htmlFor='particleSize'>Particle Size</Label>
-                    <Slider id="particleSize" min={0.1} max={2} step={0.1} value={[controls.particleSize]} onValueChange={([val]) => setControls(c => ({...c, particleSize: val}))} disabled={isDisabled} />
-                  </div>
-                  <div className='space-y-2'>
-                    <Label htmlFor='bassSensitivity'>Bass Reactivity</Label>
-                    <Slider id="bassSensitivity" min={0} max={2} step={0.1} value={[controls.bassSensitivity]} onValueChange={([val]) => setControls(c => ({...c, bassSensitivity: val}))} disabled={isDisabled} />
-                  </div>
-                  <div className='space-y-2'>
-                    <Label htmlFor='trebleSensitivity'>Treble Reactivity</Label>
-                    <Slider id="trebleSensitivity" min={0} max={2} step={0.1} value={[controls.trebleSensitivity]} onValueChange={([val]) => setControls(c => ({...c, trebleSensitivity: val}))} disabled={isDisabled} />
-                  </div>
-                   <div className='space-y-2'>
-                    <Label htmlFor='rotationSpeed'>Rotation Speed</Label>
-                    <Slider id="rotationSpeed" min={0} max={2} step={0.1} value={[controls.rotationSpeed]} onValueChange={([val]) => setControls(c => ({...c, rotationSpeed: val}))} disabled={isDisabled} />
-                  </div>
-                </div>
               </div>
             )}
           </div>
         </ScrollArea>
-        
-        {audioSrc && (
-          <div className="mt-auto pt-4 space-y-3">
-            <h3 className="text-lg font-semibold">Export & Share</h3>
-            <div className="grid grid-cols-2 gap-2">
-               <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant={isRecording ? "destructive" : "outline"} disabled={!audioSrc}>
-                       {isRecording 
-                          ? <><CircleDot className="mr-2 text-red-500 animate-pulse" /> Stop</> 
-                          : <><Video className="mr-2"/> Record MP4</>}
-                       <ChevronDown className="ml-auto h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => handleRecordClick('720p')} disabled={isRecording}>720p</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleRecordClick('1080p')} disabled={isRecording}>1080p</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleRecordClick('4k')} disabled={isRecording}>4K</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              <Button variant="outline" onClick={handleExportGif} disabled={isDisabled || !audioSrc}><Download className="mr-2"/> GIF</Button>
-            </div>
-            <div className="grid grid-cols-1 gap-2">
-              <Button onClick={handleShare} disabled={isDisabled || !audioSrc}><Share2 className="mr-2"/> Share</Button>
-            </div>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
