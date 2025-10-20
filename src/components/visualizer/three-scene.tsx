@@ -183,7 +183,7 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
                 case 'crimson':
                 case 'ocean':
                 case 'lime':
-                    color = presetColors[colorMode];
+                    color = presetColors[colorMode].clone();
                     break;
             }
             
@@ -406,3 +406,5 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
 
 ThreeScene.displayName = 'ThreeScene';
 export default ThreeScene;
+
+    
