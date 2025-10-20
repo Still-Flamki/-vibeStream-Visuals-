@@ -63,29 +63,20 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   }, [cleanup]);
 
   const analyzeAndSetMood = useCallback(async () => {
-    if (!player.current?.loaded) return;
+    if (!player.current?.loaded || !analyser.current) return;
 
     try {
-      const buffer = player.current.buffer;
-      // This is a robust, offline way to get FFT data without crashing.
-      const offlineContext = new Tone.OfflineContext(buffer.duration, buffer.sampleRate, 2);
-      const source = new Tone.BufferSource(buffer).connect(offlineContext.destination);
-      const fft = new Tone.FFT({ size: 2048, context: offlineContext.rawContext as any });
-      source.connect(fft);
-      
-      source.start(0);
-      await offlineContext.render();
-      
-      const frequencyData = fft.getValue();
+      // Get the frequency data directly from the live analyser
+      const frequencyData = analyser.current.getValue();
       
       if (frequencyData instanceof Float32Array) {
-        const fftSize = fft.size;
+        const fftSize = analyser.current.size;
         const sampleRate = Tone.context.sampleRate;
         const bassEndIndex = Math.floor(250 / (sampleRate / fftSize));
         const midEndIndex = Math.floor(4000 / (sampleRate / fftSize));
         
         const bass = frequencyData.slice(0, bassEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
-        const mid = frequencyData.slice(bassEndIndex, midEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
+        const mid = frequency_data.slice(bassEndIndex, midEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
         const treble = frequencyData.slice(midEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
         
         const total = bass + mid + treble || 1;
@@ -99,9 +90,9 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
         else newMood = 'happy';
         
         setMood(newMood);
+      } else {
+        throw new Error("Could not retrieve valid frequency data.");
       }
-      fft.dispose();
-      source.dispose();
     } catch (error) {
       console.error("Error analyzing mood:", error);
       // Fallback to random mood if analysis fails
@@ -128,7 +119,8 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       setAudioSrc(url);
       setFileName(name || url.split('/').pop() || "Audio Track");
       
-      await analyzeAndSetMood();
+      // The analysis now happens after a short delay to allow the analyser to populate
+      setTimeout(() => analyzeAndSetMood(), 500);
 
     } catch(err) {
       console.error("Error loading audio:", err);
@@ -182,12 +174,14 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
         cancelAnimationFrame(animationFrameId.current);
       }
     } else {
-      if (Tone.Transport.state === 'paused' || Tone.Transport.state === 'stopped') {
-        if (player.current.synced) {
-            player.current.unsync();
+       if (player.current.state === 'stopped' || Tone.Transport.state === 'paused') {
+          if (!player.current.synced) {
+            player.current.sync();
+          }
+          if(player.current.state === 'stopped') {
+            player.current.start(0, Tone.Transport.seconds);
+          }
         }
-        player.current.sync().start(0, Tone.Transport.seconds);
-      }
       Tone.Transport.start();
       setIsPlaying(true);
       animationFrameId.current = requestAnimationFrame(updateProgress);
