@@ -108,7 +108,7 @@ export default function Visualizer() {
     <div className="w-full flex-grow flex flex-col gap-4 min-h-0 items-center justify-center">
        <div className="w-full h-full flex items-center justify-center p-4">
         <Card 
-          className="relative rounded-lg overflow-hidden bg-black/50 shadow-2xl shadow-primary/20 max-h-full w-full max-w-7xl"
+          className="relative rounded-lg overflow-hidden bg-black/50 shadow-2xl shadow-primary/20 w-full max-w-7xl max-h-full"
           style={{aspectRatio: audioSrc ? aspectRatio : '16 / 9'}}
         >
           <CardContent className="p-0 h-full w-full">
@@ -139,8 +139,8 @@ export default function Visualizer() {
             
             {audioSrc ? (
               isMobileAspectRatio ? (
-                <div className="w-full h-full flex items-center justify-center bg-black p-4">
-                  <PhoneFrame>
+                <div className="w-full h-full flex items-center justify-center bg-black p-4 md:p-8">
+                  <PhoneFrame className="h-full w-auto">
                     {VisualizerContent}
                   </PhoneFrame>
                 </div>
