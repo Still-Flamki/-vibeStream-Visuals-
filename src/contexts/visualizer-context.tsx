@@ -127,7 +127,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       // Fan out the player's output to both the analyser and the main destination
       newPlayer.fan(analyser.current, Tone.Destination);
       
-      await Tone.loaded();
+      await newPlayer.load(url);
       player.current = newPlayer;
 
       setAudioSrc(url);
