@@ -55,7 +55,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
   const updateProgress = useCallback(() => {
     if (player.current?.state === "started" && player.current.buffer.duration > 0) {
-      const currentProgress = player.current.progress;
+      const currentProgress = (Tone.Transport.seconds / player.current.buffer.duration);
       if (isFinite(currentProgress)) {
         setProgress(currentProgress);
         if (currentProgress >= 1) {
@@ -77,25 +77,26 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     if (!analyser.current || !player.current || !player.current.loaded) return;
     
     // We need to play a small snippet to get frequency data
-    const originalState = {
-      isPlaying: Tone.Transport.state === 'started',
-      progress: player.current.progress,
-      isMuted: player.current.mute,
-    };
+    const wasPlaying = Tone.Transport.state === 'started';
+    const originalTime = Tone.Transport.seconds;
+    const isMuted = player.current.mute;
 
     try {
-      // Mute, play a snippet, analyze, then revert
+      // Mute, play a snippet from the start, analyze, then revert
       player.current.mute = true;
-      if (Tone.Transport.state !== 'started') {
-        await Tone.start();
-        player.current.start();
-        Tone.Transport.start();
+      if (wasPlaying) {
+        Tone.Transport.pause();
       }
+
+      await Tone.start();
+      player.current.start(Tone.now(), 0);
+      Tone.Transport.start();
       
       // Wait a moment for analysis
-      await new Promise(res => setTimeout(res, 200));
+      await new Promise(res => setTimeout(res, 300));
 
       const frequencyData = analyser.current.getValue();
+      player.current.stop();
 
       if (frequencyData instanceof Float32Array) {
         const fftSize = analyser.current.size;
@@ -107,16 +108,16 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
         const mid = frequencyData.slice(bassEndIndex, midEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
         const treble = frequencyData.slice(midEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
         
-        const total = bass + mid + treble;
+        const total = bass + mid + treble || 1;
         const bassRatio = bass / total;
         const midRatio = mid / total;
         const trebleRatio = treble / total;
 
         let newMood: Mood;
 
-        if (bassRatio > 0.4) {
+        if (bassRatio > 0.35 && bassRatio > trebleRatio) {
           newMood = 'dark';
-        } else if (trebleRatio > 0.35) {
+        } else if (trebleRatio > 0.3) {
           newMood = 'energetic';
         } else if (midRatio > 0.4) {
           newMood = 'happy';
@@ -137,15 +138,13 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     } finally {
         // Revert player state
         if (player.current) {
-            if (!originalState.isPlaying) {
-                player.current.stop();
-                Tone.Transport.stop();
-                const seekTime = originalState.progress * player.current.buffer.duration;
-                if(isFinite(seekTime)) {
-                    player.current.seek(seekTime);
-                }
-            }
-            player.current.mute = originalState.isMuted;
+          player.current.stop();
+          Tone.Transport.stop();
+          Tone.Transport.seconds = originalTime;
+          player.current.mute = isMuted;
+          if (wasPlaying) {
+            Tone.Transport.start(undefined, originalTime);
+          }
         }
     }
   }, [toast]);
@@ -164,6 +163,8 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     }
     setIsPlaying(false);
     setProgress(0);
+    Tone.Transport.seconds = 0;
+
 
     try {
       await player.current.load(url);
@@ -201,21 +202,16 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     } else {
       await Tone.start();
       
-      const currentProgress = player.current.progress;
-      if (currentProgress >= 1 || !isFinite(currentProgress)) { 
-          player.current.seek(0);
+      let startTime = Tone.Transport.seconds;
+      if (!isFinite(startTime) || startTime >= player.current.buffer.duration) {
+          startTime = 0;
+          Tone.Transport.seconds = 0;
           setProgress(0);
       }
       
-      const startTime = player.current.progress * player.current.buffer.duration;
-      if (isFinite(startTime)) {
-        player.current.start(undefined, startTime);
-        Tone.Transport.start();
-        setIsPlaying(true);
-        animationFrameId.current = requestAnimationFrame(updateProgress);
-      } else {
-        console.error("Cannot start playback, invalid start time.");
-      }
+      Tone.Transport.start(undefined, startTime);
+      setIsPlaying(true);
+      animationFrameId.current = requestAnimationFrame(updateProgress);
     }
   }, [isPlaying, updateProgress]);
 
@@ -225,7 +221,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       if(isFinite(duration) && isFinite(progress)) {
         const newTime = duration * progress;
         if (isFinite(newTime)) {
-          player.current.seek(newTime);
+          Tone.Transport.seconds = newTime;
           setProgress(progress);
         }
       }
