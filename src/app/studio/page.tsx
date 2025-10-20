@@ -1,30 +1,81 @@
 
+'use client';
+
+import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupLabel, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
+import { Card, CardContent } from '@/components/ui/card';
+import { SlidersHorizontal, Shapes, Clock, Cube, Layers, Camera } from 'lucide-react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import Header from '@/components/layout/header';
 import Footer from '@/components/layout/footer';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Construction } from 'lucide-react';
 
 export default function StudioPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <Header />
-      <main className="flex-grow flex items-center justify-center p-8">
-        <Card className="w-full max-w-2xl text-center">
-            <CardHeader>
-                <CardTitle className="text-4xl font-headline flex items-center justify-center gap-4">
-                    <Construction className="h-10 w-10 text-primary" />
-                    Studio Mode
-                </CardTitle>
-                <CardDescription className="text-lg text-muted-foreground pt-2">
-                    Under Construction
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <p>This is the future home of the VibeStream 3D Studio.</p>
-                <p className="mt-2 text-muted-foreground">Here, you'll be able to import your own 3D models, apply audio-reactive effects, and build custom scenes to render and share.</p>
-            </CardContent>
-        </Card>
-      </main>
+      <div className="flex-grow flex">
+        <Sidebar>
+            <SidebarContent className="p-4">
+                <Accordion type="multiple" defaultValue={['scene', 'properties']} className="w-full">
+                    <AccordionItem value="scene">
+                        <AccordionTrigger>
+                            <div className="flex items-center gap-2">
+                                <Layers className="h-4 w-4" />
+                                <span>Scene</span>
+                            </div>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                           <SidebarMenu>
+                                <SidebarMenuItem>
+                                    <SidebarMenuButton size="sm" isActive>
+                                        <Cube className="h-4 w-4" />
+                                        <span>Default Cube</span>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                                <SidebarMenuItem>
+                                    <SidebarMenuButton size="sm">
+                                        <Camera className="h-4 w-4" />
+                                        <span>Camera</span>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                           </SidebarMenu>
+                        </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="properties">
+                        <AccordionTrigger>
+                             <div className="flex items-center gap-2">
+                                <SlidersHorizontal className="h-4 w-4" />
+                                <span>Properties</span>
+                            </div>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                            <p className="text-xs text-muted-foreground p-2">Select an object to see its properties.</p>
+                        </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="timeline">
+                        <AccordionTrigger>
+                            <div className="flex items-center gap-2">
+                                <Clock className="h-4 w-4" />
+                                <span>Timeline</span>
+                            </div>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                           <p className="text-xs text-muted-foreground p-2">Animation timeline controls will appear here.</p>
+                        </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
+            </SidebarContent>
+        </Sidebar>
+        <SidebarInset className="flex-grow flex flex-col p-4 gap-4">
+            <main className="flex-grow flex items-center justify-center rounded-lg bg-black/30 border border-border">
+                <p className="text-muted-foreground">3D Viewport</p>
+            </main>
+             <Card className="h-48">
+                <CardContent className="p-4 flex items-center justify-center h-full">
+                    <p className="text-muted-foreground">Timeline / Keyframes</p>
+                </CardContent>
+            </Card>
+        </SidebarInset>
+      </div>
       <Footer />
     </div>
   );
