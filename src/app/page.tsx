@@ -1,7 +1,7 @@
 
 import { Button } from '@/components/ui/button';
 import { VibeStreamIcon } from '@/components/icons';
-import { ArrowRight, Bot, Download, Sparkles, Waves, Rocket, Share2 } from 'lucide-react';
+import { ArrowRight, Bot, Cuboid, Rocket, Waves, Share2 } from 'lucide-react';
 import Link from 'next/link';
 import Header from '@/components/layout/header';
 import Footer from '@/components/layout/footer';
@@ -20,9 +20,14 @@ const features = [
     description: 'Our AI analyzes the energy and emotional tone of your track to automatically select colors and effects that match the vibe.',
   },
   {
+    icon: <Cuboid className="h-8 w-8 text-primary" />,
+    title: 'Build Your Own Scenes',
+    description: 'Use the integrated Studio to design custom 3D scenes. Add objects, change their shape, color, position, and scale to create your unique visual identity.',
+  },
+    {
     icon: <Rocket className="h-8 w-8 text-primary" />,
     title: 'Multiple Visual Styles',
-    description: 'Choose from a curated library of visual themes—from cosmic nebulae to synthwave grids—to find the perfect look for your sound.',
+    description: 'Choose from a curated library of visual themes—from cosmic nebulae to synthwave grids—or use a scene you built in the Studio.',
   },
     {
     icon: <Share2 className="h-8 w-8 text-primary" />,
