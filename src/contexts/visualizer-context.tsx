@@ -39,7 +39,7 @@ const qualitySettings = {
   '4k': { vertical: 2160, bitrate: 20 * 1000 * 1000 },
 };
 
-const aspectRatios: { [key: string]: { label: string; value: number, isMobile: boolean } } = {
+export const aspectRatios: { [key: string]: { label: string; value: number, isMobile: boolean } } = {
   '16:9': { label: 'Widescreen (16:9)', value: 16 / 9, isMobile: true },
   '9:16': { label: 'Portrait (9:16)', value: 9 / 16, isMobile: true },
   '1:1': { label: 'Square (1:1)', value: 1 / 1, isMobile: false },
