@@ -129,29 +129,80 @@ export default function Visualizer() {
           style={{aspectRatio: audioSrc ? numericAspectRatio : '16 / 9'}}
         >
           <CardContent className="p-0 h-full w-full">
-            {audioSrc && !isLoading && (
-              <div className="absolute top-4 right-4 z-10 flex gap-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant={isRecording ? "destructive" : "outline"} size="icon" disabled={!audioSrc} className="bg-card/50 backdrop-blur-sm">
-                        {isRecording 
-                          ? <CircleDot className="text-red-500 animate-pulse" /> 
-                          : <Video />}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => handleRecordClick('720p')} disabled={isRecording}>Record 720p</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleRecordClick('1080p')} disabled={isRecording}>Record 1080p</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleRecordClick('4k')} disabled={isRecording}>Record 4K</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <Button variant="outline" size="icon" onClick={handleExportGif} disabled={isDisabled || !audioSrc} className="bg-card/50 backdrop-blur-sm">
-                  <Download />
-                </Button>
-                <Button variant="outline" size="icon" onClick={handleShare} disabled={isDisabled || !audioSrc} className="bg-card/50 backdrop-blur-sm">
-                  <Share2 />
-                </Button>
-              </div>
+             {audioSrc && !isLoading && (
+              <>
+                <div className="absolute top-4 left-4 z-10 flex flex-col md:flex-row gap-2">
+                    <div className="space-y-2">
+                        <Select onValueChange={(value: VisualizationType) => setVisualizationType(value)} defaultValue={visualizationType} disabled={isDisabled}>
+                          <SelectTrigger className="w-[180px] bg-card/50 backdrop-blur-sm border-primary/20">
+                              <SelectValue placeholder="Select a visualization" />
+                          </SelectTrigger>
+                          <SelectContent>
+                              <SelectItem value="sphere_pulse">Sphere Pulse</SelectItem>
+                              <SelectItem value="warp_drive">Warp Drive</SelectItem>
+                              <SelectItem value="cosmic_web">Cosmic Web</SelectItem>
+                              <SelectItem value="tidal_wave">Tidal Wave</SelectItem>
+                          </SelectContent>
+                        </Select>
+                    </div>
+                     <div className="space-y-2">
+                        <Select onValueChange={(value: string) => setAspectRatio(value)} defaultValue={aspectRatio} disabled={isDisabled}>
+                          <SelectTrigger className="w-[180px] bg-card/50 backdrop-blur-sm border-primary/20">
+                              <SelectValue placeholder="Select an aspect ratio" />
+                          </SelectTrigger>
+                          <SelectContent>
+                              {Object.entries(aspectRatios).map(([key, {label}]) => (
+                                <SelectItem key={key} value={key}>{label}</SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Select onValueChange={(value: ColorMode) => setColorMode(value)} defaultValue={colorMode} disabled={isDisabled}>
+                        <SelectTrigger className="w-[150px] bg-card/50 backdrop-blur-sm border-primary/20">
+                            <SelectValue placeholder="Select a color mode" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="mood">Mood-Based</SelectItem>
+                            <SelectItem value="multicolor">Multicolor</SelectItem>
+                            <SelectItem value="custom">Custom</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {colorMode === 'custom' && (
+                        <Input 
+                          type="color" 
+                          value={customColor}
+                          onChange={(e) => setCustomColor(e.target.value)}
+                          className="w-12 h-10 p-1 bg-card/50 backdrop-blur-sm border-primary/20"
+                          disabled={isDisabled}
+                        />
+                      )}
+                    </div>
+                </div>
+
+                <div className="absolute top-4 right-4 z-10 flex gap-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant={isRecording ? "destructive" : "outline"} size="icon" disabled={!audioSrc} className="bg-card/50 backdrop-blur-sm border-primary/20">
+                          {isRecording 
+                            ? <CircleDot className="text-red-500 animate-pulse" /> 
+                            : <Video />}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem onClick={() => handleRecordClick('720p')} disabled={isRecording}>Record 720p</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleRecordClick('1080p')} disabled={isRecording}>Record 1080p</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleRecordClick('4k')} disabled={isRecording}>Record 4K</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <Button variant="outline" size="icon" onClick={handleExportGif} disabled={isDisabled || !audioSrc} className="bg-card/50 backdrop-blur-sm border-primary/20">
+                    <Download />
+                  </Button>
+                  <Button variant="outline" size="icon" onClick={handleShare} disabled={isDisabled || !audioSrc} className="bg-card/50 backdrop-blur-sm border-primary/20">
+                    <Share2 />
+                  </Button>
+                </div>
+              </>
             )}
             
             {audioSrc || isLoading ? (
@@ -185,36 +236,8 @@ export default function Visualizer() {
       {audioSrc && !isLoading && (
           <Card className="bg-card/50 backdrop-blur-sm w-full max-w-7xl mx-auto">
             <CardContent className="p-4 flex items-center gap-6">
-              <div className="flex-grow grid grid-cols-1 md:grid-cols-5 gap-6 items-center">
-                  <div className='space-y-3 md:col-span-1'>
-                      <div className="space-y-2">
-                          <h3 className="text-sm font-semibold flex items-center gap-2"><Sparkles className="text-primary h-4 w-4"/> Visual Style</h3>
-                          <Select onValueChange={(value: VisualizationType) => setVisualizationType(value)} defaultValue={visualizationType} disabled={isDisabled}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select a visualization" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="sphere_pulse">Sphere Pulse</SelectItem>
-                                <SelectItem value="warp_drive">Warp Drive</SelectItem>
-                                <SelectItem value="cosmic_web">Cosmic Web</SelectItem>
-                                <SelectItem value="tidal_wave">Tidal Wave</SelectItem>
-                            </SelectContent>
-                          </Select>
-                      </div>
-                       <div className="space-y-2">
-                          <h3 className="text-sm font-semibold flex items-center gap-2"><Crop className="text-primary h-4 w-4"/> Aspect Ratio</h3>
-                          <Select onValueChange={(value: string) => setAspectRatio(value)} defaultValue={aspectRatio} disabled={isDisabled}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select an aspect ratio" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {Object.entries(aspectRatios).map(([key, {label}]) => (
-                                  <SelectItem key={key} value={key}>{label}</SelectItem>
-                                ))}
-                            </SelectContent>
-                          </Select>
-                      </div>
-                  </div>
+              <div className="flex-grow grid grid-cols-1 md:grid-cols-4 gap-6 items-center">
+                  
                   <div className='space-y-3 md:col-span-2'>
                     <div className='grid grid-cols-2 gap-4'>
                       <div className='space-y-1'>
@@ -236,31 +259,8 @@ export default function Visualizer() {
                         <Slider id="bounceIntensity" min={0} max={5} step={0.1} value={[controls.bounceIntensity]} onValueChange={([val]) => setControls(c => ({...c, bounceIntensity: val}))} disabled={isDisabled} />
                       </div>
                     </div>
-                     <div className="space-y-2">
-                        <h3 className="text-sm font-semibold flex items-center gap-2 pt-2"><Palette className="text-primary h-4 w-4"/> Color Mode</h3>
-                        <div className="flex items-center gap-2">
-                           <Select onValueChange={(value: ColorMode) => setColorMode(value)} defaultValue={colorMode} disabled={isDisabled}>
-                              <SelectTrigger className="flex-grow">
-                                  <SelectValue placeholder="Select a color mode" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                  <SelectItem value="mood">Mood-Based</SelectItem>
-                                  <SelectItem value="multicolor">Multicolor</SelectItem>
-                                  <SelectItem value="custom">Custom</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            {colorMode === 'custom' && (
-                              <Input 
-                                type="color" 
-                                value={customColor}
-                                onChange={(e) => setCustomColor(e.target.value)}
-                                className="w-12 h-10 p-1"
-                                disabled={isDisabled}
-                              />
-                            )}
-                        </div>
-                      </div>
                   </div>
+
                   <div className='space-y-3 md:col-span-1'>
                      <div className='space-y-1'>
                       <Label className="text-xs">Rotation Speed</Label>
