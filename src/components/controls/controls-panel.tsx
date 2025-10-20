@@ -10,11 +10,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
-import { Upload, Link, Play, Pause, Download, Share2, Loader2, Music, Sparkles, Video, CircleDot, Film } from 'lucide-react';
+import { Upload, Link, Play, Pause, Download, Share2, Loader2, Music, Sparkles, Video, CircleDot, ChevronDown } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { VisualizationType } from '@/types';
+import type { VisualizationType, VideoQuality } from '@/types';
 import { Label } from '../ui/label';
 import type { ThreeSceneHandle } from '../visualizer/three-scene';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 interface ControlsPanelProps {
   threeSceneRef: React.RefObject<ThreeSceneHandle>;
@@ -36,10 +37,9 @@ export default function ControlsPanel({ threeSceneRef }: ControlsPanelProps) {
     controls,
     setControls,
     isRecording,
-    toggleRecording,
+    startRecording,
+    stopRecording,
     audioSrc,
-    renderVideo,
-    isRendering,
   } = useVisualizer();
   const { toast } = useToast();
 
@@ -85,23 +85,22 @@ export default function ControlsPanel({ threeSceneRef }: ControlsPanelProps) {
     console.log('Share requested.');
   };
   
-  const handleRecordClick = () => {
+  const handleRecordClick = (quality: VideoQuality) => {
     if (!threeSceneRef.current?.getCanvas()) {
       toast({ variant: 'destructive', title: 'Error', description: 'Could not find visualization to record.' });
       return;
     }
-    toggleRecording(threeSceneRef);
-  }
-  
-  const handleRenderClick = () => {
-    if (!threeSceneRef.current) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Visualizer not ready for rendering.' });
-        return;
+    if (isRecording) {
+      stopRecording();
+      toast({ title: 'Recording Stopped', description: `Your ${quality} download will begin shortly.` });
+    } else {
+      if (startRecording(threeSceneRef, quality)) {
+        toast({ title: `Recording Started (${quality})`, description: 'Click the record button again to stop and download.' });
+      }
     }
-    renderVideo(threeSceneRef);
-  };
+  }
 
-  const isDisabled = isRecording || isRendering || isLoading;
+  const isDisabled = isRecording || isLoading;
 
   return (
     <Card className="h-full flex flex-col bg-card/80 backdrop-blur-sm">
@@ -212,19 +211,24 @@ export default function ControlsPanel({ threeSceneRef }: ControlsPanelProps) {
           <div className="space-y-2 pt-2">
             <h3 className="text-lg font-semibold">Export & Share</h3>
             <div className="grid grid-cols-2 gap-2">
-              <Button variant={isRecording ? "destructive" : "outline"} onClick={handleRecordClick} disabled={isRendering || !audioSrc}>
-                {isRecording 
-                  ? <><CircleDot className="mr-2 text-red-500 animate-pulse" /> Stop</> 
-                  : <><Video className="mr-2"/> Record MP4</>}
-              </Button>
-              <Button variant="outline" onClick={handleRenderClick} disabled={isRecording || !audioSrc}>
-                {isRendering 
-                  ? <><Loader2 className="mr-2 animate-spin" /> Rendering...</>
-                  : <><Film className="mr-2"/> Render Video</>}
-              </Button>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
+               <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant={isRecording ? "destructive" : "outline"} disabled={!audioSrc}>
+                       {isRecording 
+                          ? <><CircleDot className="mr-2 text-red-500 animate-pulse" /> Stop</> 
+                          : <><Video className="mr-2"/> Record MP4</>}
+                       <ChevronDown className="ml-auto h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={() => handleRecordClick('720p')} disabled={isRecording}>720p</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleRecordClick('1080p')} disabled={isRecording}>1080p</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleRecordClick('4k')} disabled={isRecording}>4K</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               <Button variant="outline" onClick={handleExportGif} disabled={isDisabled || !audioSrc}><Download className="mr-2"/> GIF</Button>
+            </div>
+            <div className="grid grid-cols-1 gap-2">
               <Button onClick={handleShare} disabled={isDisabled || !audioSrc}><Share2 className="mr-2"/> Share</Button>
             </div>
           </div>

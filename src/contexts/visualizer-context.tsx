@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useState, useRef, useEffect, useCallback, type ReactNode } from 'react';
 import * as Tone from 'tone';
-import type { Mood, VisualizationType } from '@/types';
+import type { Mood, VisualizationType, VideoQuality } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import type { VisualizerControls } from '@/components/visualizer/visualizer-props';
 import { type ThreeSceneHandle } from '@/components/visualizer/three-scene';
@@ -25,12 +25,17 @@ interface VisualizerContextType {
   controls: VisualizerControls;
   setControls: React.Dispatch<React.SetStateAction<VisualizerControls>>;
   isRecording: boolean;
-  toggleRecording: (threeSceneRef: React.RefObject<ThreeSceneHandle>) => void;
-  isRendering: boolean;
-  renderVideo: (threeSceneRef: React.RefObject<ThreeSceneHandle>) => void;
+  startRecording: (threeSceneRef: React.RefObject<ThreeSceneHandle>, quality: VideoQuality) => boolean;
+  stopRecording: () => void;
 }
 
 const VisualizerContext = createContext<VisualizerContextType | undefined>(undefined);
+
+const qualitySettings = {
+  '720p': { width: 1280, height: 720, bitrate: 5 * 1000 * 1000 },
+  '1080p': { width: 1920, height: 1080, bitrate: 10 * 1000 * 1000 },
+  '4k': { width: 3840, height: 2160, bitrate: 25 * 1000 * 1000 },
+};
 
 export function VisualizerProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
@@ -48,7 +53,6 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     rotationSpeed: 0.5,
   });
   const [isRecording, setIsRecording] = useState(false);
-  const [isRendering, setIsRendering] = useState(false);
 
   const player = useRef<Tone.Player | null>(null);
   const analyser = useRef<Tone.Analyser | null>(null);
@@ -223,13 +227,14 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     }
   }, [updateProgress, progress, seek]);
 
-  const startRecording = (threeSceneRef: React.RefObject<ThreeSceneHandle>, onStop?: () => void) => {
+  const startRecording = (threeSceneRef: React.RefObject<ThreeSceneHandle>, quality: VideoQuality, onStop?: () => void) => {
     const canvas = threeSceneRef.current?.getCanvas();
-    if (isRecording || !streamDestinationRef.current || !canvas) return;
+    if (isRecording || !streamDestinationRef.current || !canvas) return false;
+
+    const settings = qualitySettings[quality];
 
     try {
-      // Resize for 4K
-      threeSceneRef.current?.resize(3840, 2160);
+      threeSceneRef.current?.resize(settings.width, settings.height);
 
       const videoStream = canvas.captureStream(30); // 30 FPS
       const audioStream = streamDestinationRef.current.stream;
@@ -240,7 +245,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
       mediaRecorderRef.current = new MediaRecorder(combinedStream, { 
         mimeType: 'video/webm;codecs=vp9,opus',
-        videoBitsPerSecond : 25 * 1000 * 1000 // 25 Mbps for 4K
+        videoBitsPerSecond : settings.bitrate
       });
       
       recordedChunksRef.current = [];
@@ -251,14 +256,13 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       };
 
       mediaRecorderRef.current.onstop = () => {
-        // Resize back to normal
         threeSceneRef.current?.resize();
 
         const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `vibestream-visuals-4k-${new Date().toISOString()}.webm`;
+        a.download = `vibestream-visuals-${quality}-${new Date().toISOString()}.webm`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -273,7 +277,6 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       console.error("Recording failed to start:", e);
       toast({ variant: 'destructive', title: 'Recording Error', description: 'Could not start recording. Your browser may not support this feature or codec.' });
-      // Resize back if failed
       threeSceneRef.current?.resize();
       return false;
     }
@@ -284,65 +287,6 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     mediaRecorderRef.current.stop();
     setIsRecording(false);
   };
-  
-  const toggleRecording = (threeSceneRef: React.RefObject<ThreeSceneHandle>) => {
-    if (isRecording) {
-      stopRecording();
-      toast({ title: 'Recording Stopped', description: 'Your 4K download will begin shortly.' });
-    } else {
-      if (startRecording(threeSceneRef)) {
-        toast({ title: '4K Recording Started', description: 'Click the record button again to stop and download.' });
-      }
-    }
-  };
-
-  const renderVideo = async (threeSceneRef: React.RefObject<ThreeSceneHandle>) => {
-    if (isRendering || !player.current || !player.current.loaded) {
-        toast({ variant: 'destructive', title: 'Not Ready', description: 'Please load an audio file first.' });
-        return;
-    }
-
-    setIsRendering(true);
-    toast({ title: 'Render Started', description: 'The video will be downloaded automatically when finished.' });
-    
-    // Ensure transport is stopped and cancelled before starting
-    if (Tone.Transport.state !== 'stopped') {
-        Tone.Transport.stop();
-        Tone.Transport.cancel();
-    }
-    setIsPlaying(false);
-
-    // Seek to beginning
-    seek(0);
-    
-    const recordingStarted = startRecording(threeSceneRef, () => {
-        setIsRendering(false); // This will be called on 'stop'
-        toast({ title: 'Render Complete!', description: 'Your 4K video download has started.' });
-    });
-
-    if (!recordingStarted) {
-      setIsRendering(false);
-      return;
-    }
-    
-    // Schedule stopping the recording at the end of the track
-    const duration = player.current.buffer.duration;
-    Tone.Transport.scheduleOnce((time) => {
-        stopRecording();
-        Tone.Transport.stop(time);
-        setIsPlaying(false);
-    }, duration);
-
-    // Start playback
-    await Tone.start();
-    if (player.current.state === 'stopped') {
-      player.current.sync().start(0);
-    }
-    Tone.Transport.start();
-    setIsPlaying(true);
-    animationFrameId.current = requestAnimationFrame(updateProgress);
-};
-
 
   const value: VisualizerContextType = {
     loadAudioFile,
@@ -361,9 +305,8 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     controls,
     setControls,
     isRecording,
-    toggleRecording,
-    isRendering,
-    renderVideo,
+    startRecording,
+    stopRecording,
   };
 
   return (
