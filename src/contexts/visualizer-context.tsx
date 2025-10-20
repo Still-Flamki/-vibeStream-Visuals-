@@ -76,7 +76,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
         const midEndIndex = Math.floor(4000 / (sampleRate / fftSize));
         
         const bass = frequencyData.slice(0, bassEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
-        const mid = frequency_data.slice(bassEndIndex, midEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
+        const mid = frequencyData.slice(bassEndIndex, midEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
         const treble = frequencyData.slice(midEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
         
         const total = bass + mid + treble || 1;
