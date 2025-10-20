@@ -212,6 +212,12 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
                     }
                     break;
                 }
+                 case 'aurora_borealis': {
+                    const wave1 = Math.sin(ix * 0.01 + time * 0.5 + iz * 0.005) * bassBoost * 30;
+                    const wave2 = Math.cos(ix * 0.005 - time * 0.3 + iz * 0.01) * trebleBoost * 20;
+                    y = iy + wave1 + wave2;
+                    break;
+                }
             }
         }
 
@@ -223,13 +229,13 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
 
         if (colorAttribute) {
             let color: THREE.Color;
-            switch(colorMode) {
+             switch(colorMode) {
                 case 'mood':
                     const mixFactor = (iy / 100 + 1) / 2;
                     color = c1.clone().lerp(c2, isNaN(mixFactor) ? 0.5 : mixFactor);
                     break;
                 case 'multicolor':
-                    const hue = (time * 0.1 + ix * 0.01) % 1;
+                    const hue = (time * 0.1 + ix * 0.01 + iy * 0.01) % 1;
                     color = new THREE.Color().setHSL(hue, 1, 0.5);
                     break;
                 case 'crimson':
@@ -411,7 +417,7 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
             break;
         }
         case 'galaxy':
-            particleCount = 15000;
+            particleCount = 20000;
             positions = new Float32Array(particleCount * 3);
             const arms = 4;
             const armAngle = 2 * Math.PI / arms;
@@ -503,6 +509,31 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
             }
             positions = new Float32Array(positionsList);
             break;
+        case 'aurora_borealis': {
+            const ribbonCount = 10;
+            const ribbonLength = 200;
+            const ribbonWidth = 20;
+            const segments = 50;
+            const allPositions: number[] = [];
+            for(let r = 0; r < ribbonCount; r++) {
+                const startX = (Math.random() - 0.5) * 200;
+                const startZ = (Math.random() - 0.5) * 50 - 20;
+                for(let i = 0; i < segments; i++) {
+                    const x1 = startX + (i/segments) * ribbonLength - ribbonLength / 2;
+                    const x2 = startX + ((i+1)/segments) * ribbonLength - ribbonLength / 2;
+
+                    allPositions.push(x1, -ribbonWidth, startZ);
+                    allPositions.push(x2, -ribbonWidth, startZ);
+                    allPositions.push(x2, ribbonWidth, startZ);
+
+                    allPositions.push(x1, -ribbonWidth, startZ);
+                    allPositions.push(x2, ribbonWidth, startZ);
+                    allPositions.push(x1, ribbonWidth, startZ);
+                }
+            }
+            positions = new Float32Array(allPositions);
+            break;
+        }
         case 'tidal_wave':
         default:
             const size = 200;
@@ -530,18 +561,13 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
     
     let material: THREE.PointsMaterial | THREE.MeshBasicMaterial;
 
-    if (visualizationType === 'audio_city') {
-        const indices: number[] = [];
-        const numQuads = positions.length / 3 / 4;
-        for (let i = 0; i < numQuads; i++) {
-            const base = i * 4;
-            indices.push(base, base + 1, base + 2);
-            indices.push(base, base + 2, base + 3);
-        }
-        geometry.setIndex(indices);
+    if (visualizationType === 'audio_city' || visualizationType === 'aurora_borealis') {
         material = new THREE.MeshBasicMaterial({
             vertexColors: true,
-            side: THREE.DoubleSide
+            side: THREE.DoubleSide,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            opacity: visualizationType === 'aurora_borealis' ? 0.7 : 1.0,
         });
         newVisual = new THREE.Mesh(geometry, material);
     } else {
@@ -577,5 +603,3 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
 
 ThreeScene.displayName = 'ThreeScene';
 export default ThreeScene;
-
-    

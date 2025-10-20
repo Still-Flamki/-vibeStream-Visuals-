@@ -139,7 +139,7 @@ export default function Visualizer() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectGroup>
-                              <SelectLabel>Particles</SelectLabel>
+                              <SelectLabel>Particle</SelectLabel>
                               <SelectItem value="sphere_pulse">Sphere Pulse</SelectItem>
                               <SelectItem value="warp_drive">Warp Drive</SelectItem>
                               <SelectItem value="cosmic_web">Cosmic Web</SelectItem>
@@ -149,6 +149,10 @@ export default function Visualizer() {
                               <SelectItem value="galaxy">Galaxy</SelectItem>
                               <SelectItem value="heartbeat">Heartbeat</SelectItem>
                               <SelectItem value="digital_earth">Digital Earth</SelectItem>
+                            </SelectGroup>
+                            <SelectGroup>
+                              <SelectLabel>Atmospheric</SelectLabel>
+                              <SelectItem value="aurora_borealis">Aurora Borealis</SelectItem>
                             </SelectGroup>
                           </SelectContent>
                         </Select>
