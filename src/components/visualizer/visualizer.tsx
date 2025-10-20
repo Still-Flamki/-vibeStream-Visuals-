@@ -208,7 +208,7 @@ export default function Visualizer() {
                           </Select>
                       </div>
                   </div>
-                  <div className='space-y-3 md:col-span-1'>
+                  <div className='space-y-3 md:col-span-2'>
                     <div className='space-y-1'>
                       <Label className="text-xs">Bass Reactivity</Label>
                       <Slider id="bassSensitivity" min={0} max={2} step={0.1} value={[controls.bassSensitivity]} onValueChange={([val]) => setControls(c => ({...c, bassSensitivity: val}))} disabled={isDisabled} />
@@ -221,8 +221,12 @@ export default function Visualizer() {
                       <Label className="text-xs">Particle Size</Label>
                       <Slider id="particleSize" min={0.1} max={2} step={0.1} value={[controls.particleSize]} onValueChange={([val]) => setControls(c => ({...c, particleSize: val}))} disabled={isDisabled} />
                     </div>
+                     <div className='space-y-1'>
+                      <Label className="text-xs">Bounce Intensity</Label>
+                      <Slider id="bounceIntensity" min={0} max={5} step={0.1} value={[controls.bounceIntensity]} onValueChange={([val]) => setControls(c => ({...c, bounceIntensity: val}))} disabled={isDisabled} />
+                    </div>
                   </div>
-                  <div className='space-y-3 md:col-span-2'>
+                  <div className='space-y-3 md:col-span-1'>
                      <div className='space-y-1'>
                       <Label className="text-xs">Rotation Speed</Label>
                       <Slider min={0} max={2} step={0.1} value={[controls.rotation.speed]} onValueChange={([val]) => setControls(c => ({...c, rotation: {...c.rotation, speed: val}}))} disabled={isDisabled || controls.rotation.direction === 'none'} />

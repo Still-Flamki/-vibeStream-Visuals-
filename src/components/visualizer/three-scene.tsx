@@ -94,8 +94,8 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
         }
     }
     
-    bassBoost = isFinite(bassBoost) ? bassBoost : 0;
-    trebleBoost = isFinite(trebleBoost) ? trebleBoost : 0;
+    bassBoost = (isFinite(bassBoost) ? bassBoost : 0) * controls.bounceIntensity;
+    trebleBoost = (isFinite(trebleBoost) ? trebleBoost : 0) * controls.bounceIntensity;
 
     const time = clockRef.current.getElapsedTime();
     const { c1, c2 } = moodColors[mood];

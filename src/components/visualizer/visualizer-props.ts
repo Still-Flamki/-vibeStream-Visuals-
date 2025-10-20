@@ -4,6 +4,7 @@ import type { Mood, VisualizationType } from '@/types';
 
 export type VisualizerControls = {
   particleSize: number;
+  bounceIntensity: number;
   bassSensitivity: number;
   trebleSensitivity: number;
   rotation: {

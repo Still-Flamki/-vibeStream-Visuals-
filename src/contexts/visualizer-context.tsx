@@ -61,6 +61,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   const [analyserNode, setAnalyserNode] = useState<Tone.Analyser | null>(null);
   const [controls, setControls] = useState<VisualizerControls>({
     particleSize: 0.8,
+    bounceIntensity: 1.0,
     bassSensitivity: 1.0,
     trebleSensitivity: 1.0,
     rotation: {
@@ -228,8 +229,8 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   
     // Connect nodes on first play
     if (!isConnected.current) {
-      if (analyser.current) {
-        player.current.connect(analyser.current);
+      if (analyserNode) {
+        player.current.connect(analyserNode);
       }
       if (streamDestinationRef.current) {
         player.current.connect(streamDestinationRef.current);
@@ -258,7 +259,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       setIsPlaying(true);
       requestAnimationFrame(updateProgress);
     }
-  }, [updateProgress, progress, seek]);
+  }, [updateProgress, progress, seek, analyserNode]);
 
   const startRecording = (threeSceneRef: React.RefObject<ThreeSceneHandle>, quality: VideoQuality, onStop?: () => void) => {
     const canvas = threeSceneRef.current?.getCanvas();
