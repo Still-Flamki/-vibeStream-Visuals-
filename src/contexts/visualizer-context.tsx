@@ -114,6 +114,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     
     try {
       await Tone.start();
+      
       analyser.current = new Tone.Analyser('fft', 2048);
       streamDestinationRef.current = Tone.context.createMediaStreamDestination();
       

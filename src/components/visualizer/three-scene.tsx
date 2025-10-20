@@ -63,9 +63,11 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
     if (!visualRef.current) return;
 
     const { analyserNode, isPlaying, mood, visualizationType, controls } = latestProps.current;
-    const positionAttribute = (visualRef.current.geometry as THREE.BufferGeometry).getAttribute('position');
-    const colorAttribute = (visualRef.current.geometry as THREE.BufferGeometry).getAttribute('color');
-    const initialPositions = initialPositionsRef.current!;
+    const geometry = (visualRef.current.geometry as THREE.BufferGeometry);
+    if (!geometry) return;
+    const positionAttribute = geometry.getAttribute('position');
+    const colorAttribute = geometry.getAttribute('color');
+    const initialPositions = initialPositionsRef.current;
 
     if (!positionAttribute || !initialPositions) return;
 
@@ -74,18 +76,25 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
     let frequencyData: Float32Array | null = null;
     
     if (analyserNode && isPlaying) {
-      const rawFrequencyData = analyserNode.getValue();
-      if (rawFrequencyData instanceof Float32Array) {
-        frequencyData = rawFrequencyData;
-        const lowerHalf = frequencyData.slice(0, frequencyData.length / 4);
-        const lowerAvg = lowerHalf.reduce((a, b) => a + Math.abs(b), 0) / lowerHalf.length;
-        const upperHalf = frequencyData.slice(frequencyData.length / 2);
-        const upperAvg = upperHalf.reduce((a, b) => a + Math.abs(b), 0) / upperHalf.length;
-
-        bassBoost = isFinite(lowerAvg) ? (Math.abs(lowerAvg) / 100) * controls.bassSensitivity : 0;
-        trebleBoost = isFinite(upperAvg) ? (Math.abs(upperAvg) / 100) * controls.trebleSensitivity : 0;
-      }
+        const rawFrequencyData = analyserNode.getValue();
+        if (rawFrequencyData instanceof Float32Array && rawFrequencyData.length > 0) {
+            frequencyData = rawFrequencyData;
+            const lowerHalf = frequencyData.slice(0, Math.floor(frequencyData.length / 4));
+            const upperHalf = frequencyData.slice(Math.floor(frequencyData.length / 2));
+            
+            if (lowerHalf.length > 0) {
+                const lowerAvg = lowerHalf.reduce((a, b) => a + Math.abs(b), 0) / lowerHalf.length;
+                bassBoost = isFinite(lowerAvg) ? (Math.abs(lowerAvg) / 100) * controls.bassSensitivity : 0;
+            }
+            if(upperHalf.length > 0) {
+                const upperAvg = upperHalf.reduce((a, b) => a + Math.abs(b), 0) / upperHalf.length;
+                trebleBoost = isFinite(upperAvg) ? (Math.abs(upperAvg) / 100) * controls.trebleSensitivity : 0;
+            }
+        }
     }
+    
+    bassBoost = isFinite(bassBoost) ? bassBoost : 0;
+    trebleBoost = isFinite(trebleBoost) ? trebleBoost : 0;
 
     const time = clockRef.current.getElapsedTime();
     const { c1, c2 } = moodColors[mood];
@@ -139,10 +148,7 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
                     const wave = Math.sin(ix * 0.2 + time * 2) * bassBoost * 20;
                     const crest = Math.pow(Math.max(0, Math.sin(ix * 0.1 + time * 3)), 5) * trebleBoost * 30;
                     const freqDisplacement = freqValue ? freqValue * 0.01 : 0;
-                    const newY = wave + crest + iy * (1 + freqDisplacement);
-                    if (isFinite(newY)) {
-                        y = newY;
-                    }
+                    y = wave + crest + iy * (1 + freqDisplacement);
                     break;
                 }
             }
@@ -282,75 +288,67 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
     let geometry: THREE.BufferGeometry;
     let newVisual: THREE.Points | THREE.Mesh;
     let particleCount: number;
+    let positions: Float32Array;
 
     switch (visualizationType) {
         case 'sphere_pulse':
             particleCount = 5000;
-            const spherePositions = new Float32Array(particleCount * 3);
+            positions = new Float32Array(particleCount * 3);
             for (let i = 0; i < particleCount; i++) {
                 const i3 = i * 3;
                 const radius = 50 + Math.random() * 10;
                 const phi = Math.acos(-1 + (2 * i) / particleCount);
                 const theta = Math.sqrt(particleCount * Math.PI) * phi;
-                spherePositions[i3] = radius * Math.cos(theta) * Math.sin(phi);
-                spherePositions[i3 + 1] = radius * Math.sin(theta) * Math.sin(phi);
-                spherePositions[i3 + 2] = radius * Math.cos(phi);
+                positions[i3] = radius * Math.cos(theta) * Math.sin(phi);
+                positions[i3 + 1] = radius * Math.sin(theta) * Math.sin(phi);
+                positions[i3 + 2] = radius * Math.cos(phi);
             }
-            geometry = new THREE.BufferGeometry();
-            geometry.setAttribute('position', new THREE.BufferAttribute(spherePositions, 3));
-            initialPositionsRef.current = new Float32Array(spherePositions);
             break;
         case 'warp_drive':
             particleCount = 5000;
-            const tubePositions = new Float32Array(particleCount * 3);
+            positions = new Float32Array(particleCount * 3);
             for (let i = 0; i < particleCount; i++) {
                 const i3 = i * 3;
                 const r = 20 + Math.random() * 10;
                 const angle = Math.random() * Math.PI * 2;
-                tubePositions[i3] = Math.cos(angle) * r;
-                tubePositions[i3 + 1] = Math.sin(angle) * r;
-                tubePositions[i3 + 2] = (Math.random() - 0.5) * 200;
+                positions[i3] = Math.cos(angle) * r;
+                positions[i3 + 1] = Math.sin(angle) * r;
+                positions[i3 + 2] = (Math.random() - 0.5) * 200;
             }
-            geometry = new THREE.BufferGeometry();
-            geometry.setAttribute('position', new THREE.BufferAttribute(tubePositions, 3));
-            initialPositionsRef.current = new Float32Array(tubePositions);
             break;
         case 'cosmic_web':
             particleCount = 8000;
-            const webPositions = new Float32Array(particleCount * 3);
+            positions = new Float32Array(particleCount * 3);
             for (let i = 0; i < particleCount; i++) {
                 const i3 = i * 3;
-                webPositions[i3] = (Math.random() - 0.5) * 150;
-                webPositions[i3 + 1] = (Math.random() - 0.5) * 150;
-                webPositions[i3 + 2] = (Math.random() - 0.5) * 150;
+                positions[i3] = (Math.random() - 0.5) * 150;
+                positions[i3 + 1] = (Math.random() - 0.5) * 150;
+                positions[i3 + 2] = (Math.random() - 0.5) * 150;
             }
-            geometry = new THREE.BufferGeometry();
-            geometry.setAttribute('position', new THREE.BufferAttribute(webPositions, 3));
-            initialPositionsRef.current = new Float32Array(webPositions);
             break;
         case 'tidal_wave':
         default:
             const size = 200;
             const segments = 100;
-            const wavePositions = new Float32Array(segments * segments * 3);
+            positions = new Float32Array(segments * segments * 3);
             let idx = 0;
              for (let i = 0; i < segments; i++) {
                 for (let j = 0; j < segments; j++) {
                     const x = (i / segments - 0.5) * size;
                     const z = (j / segments - 0.5) * size;
-                    wavePositions[idx++] = x;
-                    wavePositions[idx++] = 0; // y
-                    wavePositions[idx++] = z;
+                    positions[idx++] = x;
+                    positions[idx++] = 0; // y
+                    positions[idx++] = z;
                 }
             }
-            geometry = new THREE.BufferGeometry();
-            geometry.setAttribute('position', new THREE.BufferAttribute(wavePositions, 3));
-            initialPositionsRef.current = new Float32Array(wavePositions);
             break;
     }
     
-    const positionAttribute = geometry.getAttribute('position') as THREE.BufferAttribute;
-    const colors = new Float32Array(positionAttribute.count * 3);
+    geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    initialPositionsRef.current = new Float32Array(positions);
+
+    const colors = new Float32Array(positions.length);
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     
     let material = new THREE.PointsMaterial({
