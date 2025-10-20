@@ -48,7 +48,6 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     analyser.current = null;
     setIsPlaying(false);
     setProgress(0);
-    // Don't reset src and filename, so the UI knows what was loaded
   }, []);
   
   // Effect for cleanup on unmount
@@ -64,7 +63,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       const buffer = player.current.buffer.get();
       if (!buffer) return;
 
-      // Cap the number of channels to a valid range (e.g., 1 to 32, but 2 is safe)
+      // Cap the number of channels to a valid range (e.g., 1 to 32, but 2 is safe and common)
       const numberOfChannels = Math.max(1, Math.min(buffer.numberOfChannels, 2));
 
       // Use an offline context to analyze without playing
@@ -165,7 +164,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     }
     animationFrameId.current = requestAnimationFrame(updateProgress);
   }, []);
-
+  
   const togglePlay = useCallback(async () => {
     if (!player.current || !player.current.loaded) return;
     
@@ -177,10 +176,11 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       cancelAnimationFrame(animationFrameId.current);
     } else {
        if (progress >= 1) { // If at the end, restart
-        Tone.Transport.start(undefined, 0);
+        player.current.start(undefined, 0);
       } else {
-        Tone.Transport.start();
+        player.current.start(undefined, progress * player.current.buffer.duration);
       }
+      Tone.Transport.start();
       setIsPlaying(true);
       animationFrameId.current = requestAnimationFrame(updateProgress);
     }
@@ -191,6 +191,11 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       const duration = player.current.buffer.duration;
       if(isFinite(duration) && isFinite(newProgress) && newProgress >= 0 && newProgress <= 1) {
         const newTime = duration * newProgress;
+        
+        if (Tone.Transport.state === 'started') {
+            player.current.start(undefined, newTime);
+        }
+        
         Tone.Transport.seconds = newTime;
         setProgress(newProgress);
       }
