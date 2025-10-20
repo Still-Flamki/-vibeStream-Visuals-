@@ -75,29 +75,41 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
   const streamDestinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
+  const isConnected = useRef(false);
 
   const cleanup = useCallback(() => {
     console.log("Cleaning up Tone.js objects");
+    
+    // Stop transport and cancel events
     if (Tone.Transport.state !== 'stopped') {
         Tone.Transport.stop();
         Tone.Transport.cancel(0);
     }
+    
+    // Disconnect and dispose player
     if (player.current) {
-      player.current.dispose();
-      player.current = null;
+        player.current.disconnect();
+        player.current.dispose();
+        player.current = null;
     }
+    
+    // Dispose analyser
     if (analyserNode) {
-      analyserNode.dispose();
-      setAnalyserNode(null);
+        analyserNode.dispose();
+        setAnalyserNode(null);
     }
 
-    setIsPlaying(false);
-    setAudioSrc(null);
-    setFileName(null);
-    setProgress(0);
+    // Cancel animation frame
     if(animationFrameId.current) {
       cancelAnimationFrame(animationFrameId.current);
     }
+    
+    // Reset state
+    setAudioSrc(null);
+    setFileName(null);
+    setIsPlaying(false);
+    setProgress(0);
+    isConnected.current = false;
   }, [analyserNode]);
   
   useEffect(() => {
@@ -106,37 +118,31 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
   const analyzeAndSetMood = useCallback(async (trackName: string) => {
     if (!player.current?.loaded) return;
-    const newMood = await analyzeMood(trackName);
-    setMood(newMood);
+    try {
+      const newMood = await analyzeMood(trackName);
+      setMood(newMood);
+    } catch (e) {
+      console.error("Mood analysis failed:", e);
+    }
   }, []);
 
   const loadAudio = useCallback(async (url: string, name?: string) => {
-    setIsLoading(true);
+    if (isLoading) return;
     
-    // Clean up previous instances before loading new audio
     cleanup();
-    
+    setIsLoading(true);
+
     try {
-      await Tone.start();
-      
-      const newAnalyser = new Tone.Analyser('fft', 1024);
-      streamDestinationRef.current = Tone.context.createMediaStreamDestination();
-      
       const newPlayer = new Tone.Player({
-          url: url,
-          onload: async () => {
-              console.log("Audio loaded, connecting nodes");
-              newPlayer.connect(newAnalyser);
-              newPlayer.connect(streamDestinationRef.current!);
-              newPlayer.toDestination();
-              
+          url,
+          onload: () => {
               player.current = newPlayer;
-              setAnalyserNode(newAnalyser);
               setAudioSrc(url);
               const trackName = name || url.split('/').pop() || "Audio Track";
               setFileName(trackName);
-              await analyzeAndSetMood(trackName);
+              analyzeAndSetMood(trackName);
               setIsLoading(false);
+              toast({ title: "Audio Ready", description: `"${trackName}" is loaded. Press play to start.` });
           },
           onerror: (err) => {
              console.error("Tone.Player error:", err);
@@ -145,16 +151,14 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
              setIsLoading(false);
           }
       });
-      
-      await Tone.loaded();
-
+      await newPlayer.load(url);
     } catch(err) {
       console.error("Error loading audio:", err);
-      toast({ variant: 'destructive', title: "Audio Error", description: "Failed to load audio. The file format may be unsupported or the URL may be invalid/protected by CORS." });
+      toast({ variant: 'destructive', title: "Audio Error", description: "Could not load audio. The URL may be invalid or protected by CORS." });
       cleanup();
       setIsLoading(false);
     }
-  }, [analyzeAndSetMood, toast, cleanup]);
+  }, [cleanup, analyzeAndSetMood, toast, isLoading]);
 
   const loadAudioFile = (file: File) => {
     const url = URL.createObjectURL(file);
@@ -177,8 +181,8 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
           if (isFinite(currentProgress)) {
               setProgress(Math.min(currentProgress, 1));
           }
-          
           if (currentProgress >= 1) {
+              Tone.Transport.stop();
               setIsPlaying(false);
               setProgress(1);
               if (animationFrameId.current) {
@@ -205,7 +209,19 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   const togglePlay = useCallback(async () => {
     if (!player.current || !player.current.loaded) return;
     
-    await Tone.start();
+    if (Tone.context.state !== 'running') {
+      await Tone.start();
+    }
+
+    if (!isConnected.current) {
+      const newAnalyser = new Tone.Analyser('fft', 1024);
+      setAnalyserNode(newAnalyser);
+      streamDestinationRef.current = Tone.context.createMediaStreamDestination();
+      player.current.connect(newAnalyser);
+      player.current.connect(streamDestinationRef.current);
+      player.current.toDestination();
+      isConnected.current = true;
+    }
 
     if (Tone.Transport.state === 'started') {
       Tone.Transport.pause();
@@ -217,12 +233,12 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
         if (progress >= 1) {
           seek(0);
         }
-       if (player.current.state === 'stopped') {
+        if (player.current.state === 'stopped') {
             player.current.sync().start(0);
-       }
-      Tone.Transport.start();
-      setIsPlaying(true);
-      animationFrameId.current = requestAnimationFrame(updateProgress);
+        }
+        Tone.Transport.start();
+        setIsPlaying(true);
+        animationFrameId.current = requestAnimationFrame(updateProgress);
     }
   }, [updateProgress, progress, seek]);
 
