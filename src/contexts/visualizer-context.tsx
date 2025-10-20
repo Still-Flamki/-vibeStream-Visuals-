@@ -182,8 +182,11 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
         cancelAnimationFrame(animationFrameId.current);
       }
     } else {
-      if (!player.current.synced) {
-        player.current.sync().start(0);
+      if (Tone.Transport.state === 'paused' || Tone.Transport.state === 'stopped') {
+        if (player.current.synced) {
+            player.current.unsync();
+        }
+        player.current.sync().start(0, Tone.Transport.seconds);
       }
       Tone.Transport.start();
       setIsPlaying(true);
