@@ -82,10 +82,14 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
         Tone.Transport.stop();
         Tone.Transport.cancel(0);
     }
-    player.current?.dispose();
-    analyserNode?.dispose();
-    player.current = null;
-    setAnalyserNode(null);
+    if (player.current) {
+      player.current.dispose();
+      player.current = null;
+    }
+    if (analyserNode) {
+      analyserNode.dispose();
+      setAnalyserNode(null);
+    }
 
     setIsPlaying(false);
     setAudioSrc(null);
@@ -100,18 +104,17 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     return () => cleanup();
   }, [cleanup]);
 
-  const analyzeAndSetMood = useCallback(async () => {
+  const analyzeAndSetMood = useCallback(async (trackName: string) => {
     if (!player.current?.loaded) return;
-    const newMood = await analyzeMood(fileName || 'track');
+    const newMood = await analyzeMood(trackName);
     setMood(newMood);
-  }, [fileName]);
+  }, []);
 
   const loadAudio = useCallback(async (url: string, name?: string) => {
     setIsLoading(true);
     
-    if (player.current) {
-        cleanup();
-    }
+    // Clean up previous instances before loading new audio
+    cleanup();
     
     try {
       await Tone.start();
@@ -130,8 +133,9 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
               player.current = newPlayer;
               setAnalyserNode(newAnalyser);
               setAudioSrc(url);
-              setFileName(name || url.split('/').pop() || "Audio Track");
-              await analyzeAndSetMood();
+              const trackName = name || url.split('/').pop() || "Audio Track";
+              setFileName(trackName);
+              await analyzeAndSetMood(trackName);
               setIsLoading(false);
           },
           onerror: (err) => {
@@ -334,5 +338,3 @@ export function useVisualizer(): VisualizerContextType {
   }
   return context;
 }
-
-    
