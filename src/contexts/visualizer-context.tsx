@@ -14,7 +14,7 @@ interface VisualizerContextType {
   loadAudioUrl: (url: string) => void;
   togglePlay: () => void;
   seek: (progress: number) => void;
-  analyser: Tone.Analyser | null;
+  analyserNode: Tone.Analyser | null;
   audioSrc: string | null;
   fileName: string | null;
   isPlaying: boolean;
@@ -41,10 +41,9 @@ const qualitySettings = {
 };
 
 export const aspectRatios: { [key: string]: { label: string; value: number, isMobile: boolean } } = {
-  '16:9': { label: 'Widescreen (16:9)', value: 16 / 9, isMobile: true },
-  '2.39:1': { label: 'Cinematic (2.39:1)', value: 2.39 / 1, isMobile: true },
+  '16:9': { label: 'Widescreen (16:9)', value: 16 / 9, isMobile: false },
+  '2.39:1': { label: 'Cinematic (2.39:1)', value: 2.39 / 1, isMobile: false },
 };
-
 
 export function VisualizerProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
@@ -56,6 +55,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   const [progress, setProgress] = useState(0);
   const [visualizationType, setVisualizationType] = useState<VisualizationType>('sphere_pulse');
   const [aspectRatio, setAspectRatio] = useState('16:9');
+  const [analyserNode, setAnalyserNode] = useState<Tone.Analyser | null>(null);
   const [controls, setControls] = useState<VisualizerControls>({
     particleSize: 0.8,
     bassSensitivity: 1.0,
@@ -71,23 +71,22 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   const [isRecording, setIsRecording] = useState(false);
 
   const player = useRef<Tone.Player | null>(null);
-  const analyser = useRef<Tone.Analyser | null>(null);
   const animationFrameId = useRef<number>(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
   const streamDestinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
 
-  // Cleanup function to dispose of Tone.js objects
   const cleanup = useCallback(() => {
     console.log("Cleaning up Tone.js objects");
     if (Tone.Transport.state !== 'stopped') {
         Tone.Transport.stop();
-        Tone.Transport.cancel();
+        Tone.Transport.cancel(0);
     }
     player.current?.dispose();
-    analyser.current?.dispose();
+    analyserNode?.dispose();
     player.current = null;
-    analyser.current = null;
+    setAnalyserNode(null);
+
     streamDestinationRef.current = null;
     setIsPlaying(false);
     setAudioSrc(null);
@@ -96,9 +95,8 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     if(animationFrameId.current) {
       cancelAnimationFrame(animationFrameId.current);
     }
-  }, []);
+  }, [analyserNode]);
   
-  // Effect for cleanup on unmount
   useEffect(() => {
     return () => cleanup();
   }, [cleanup]);
@@ -116,23 +114,23 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     try {
       await Tone.start();
       
-      analyser.current = new Tone.Analyser('fft', 1024);
+      const newAnalyser = new Tone.Analyser('fft', 1024);
       streamDestinationRef.current = Tone.context.createMediaStreamDestination();
       
-      player.current = new Tone.Player({
+      const newPlayer = new Tone.Player({
           url: url,
           onload: async () => {
-            if (player.current && analyser.current && streamDestinationRef.current) {
-                console.log("Audio loaded, connecting nodes");
-                player.current.connect(analyser.current);
-                player.current.connect(streamDestinationRef.current);
-                player.current.toDestination();
-                
-                setAudioSrc(url);
-                setFileName(name || url.split('/').pop() || "Audio Track");
-                await analyzeAndSetMood();
-                setIsLoading(false);
-            }
+              console.log("Audio loaded, connecting nodes");
+              newPlayer.connect(newAnalyser);
+              newPlayer.connect(streamDestinationRef.current!);
+              newPlayer.toDestination();
+              
+              player.current = newPlayer;
+              setAnalyserNode(newAnalyser);
+              setAudioSrc(url);
+              setFileName(name || url.split('/').pop() || "Audio Track");
+              await analyzeAndSetMood();
+              setIsLoading(false);
           },
           onerror: (err) => {
              console.error("Tone.Player error:", err);
@@ -167,23 +165,25 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
   const updateProgress = useCallback(() => {
     if (player.current && player.current.loaded && Tone.Transport.state === 'started') {
-        const currentProgress = Tone.Transport.seconds / player.current.buffer.duration;
-        if (isFinite(currentProgress)) {
-            setProgress(Math.min(currentProgress, 1));
+        const duration = player.current.buffer.duration;
+        if (duration > 0) {
+          const currentProgress = Tone.Transport.seconds / duration;
+          if (isFinite(currentProgress)) {
+              setProgress(Math.min(currentProgress, 1));
+          }
+          
+          if (currentProgress >= 1) {
+              setIsPlaying(false);
+              setProgress(1);
+              if (animationFrameId.current) {
+                  cancelAnimationFrame(animationFrameId.current);
+              }
+              return;
+          }
         }
-        
-        if (currentProgress >= 1) {
-            setIsPlaying(false);
-            setProgress(1);
-            if (animationFrameId.current) {
-                cancelAnimationFrame(animationFrameId.current);
-            }
-            return;
-        }
-
         animationFrameId.current = requestAnimationFrame(updateProgress);
     }
-}, []);
+  }, []);
   
   const seek = useCallback((newProgress: number) => {
     if (player.current && player.current.loaded) {
@@ -224,15 +224,22 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     const canvas = threeSceneRef.current?.getCanvas();
     if (isRecording || !streamDestinationRef.current || !canvas) return false;
 
-    const settings = qualitySettings[quality];
     const numericAspectRatio = aspectRatios[aspectRatio].value;
-    const width = Math.round(settings.vertical * numericAspectRatio);
-    const height = settings.vertical;
+    const height = qualitySettings[quality].vertical;
+    const width = Math.round(height * numericAspectRatio);
+    const bitrate = qualitySettings[quality].bitrate;
 
     try {
-      threeSceneRef.current?.resize();
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = width;
+      tempCanvas.height = height;
+      const tempCtx = tempCanvas.getContext('2d');
 
-      const videoStream = canvas.captureStream(30); // 30 FPS
+      if (!tempCtx) {
+          throw new Error("Could not create 2D context for recording canvas.");
+      }
+
+      const videoStream = tempCanvas.captureStream(30); 
       const audioStream = streamDestinationRef.current.stream;
       const combinedStream = new MediaStream([
         ...videoStream.getVideoTracks(),
@@ -241,8 +248,14 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
       mediaRecorderRef.current = new MediaRecorder(combinedStream, { 
         mimeType: 'video/webm;codecs=vp9,opus',
-        videoBitsPerSecond : settings.bitrate
+        videoBitsPerSecond : bitrate
       });
+      
+      const drawFrame = () => {
+        if (mediaRecorderRef.current?.state !== 'recording') return;
+        tempCtx.drawImage(canvas, 0, 0, width, height);
+        requestAnimationFrame(drawFrame);
+      };
       
       recordedChunksRef.current = [];
       mediaRecorderRef.current.ondataavailable = (event) => {
@@ -252,8 +265,6 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       };
 
       mediaRecorderRef.current.onstop = () => {
-        threeSceneRef.current?.resize();
-
         const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -268,12 +279,12 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       };
 
       mediaRecorderRef.current.start();
+      drawFrame();
       setIsRecording(true);
       return true;
     } catch (e) {
       console.error("Recording failed to start:", e);
       toast({ variant: 'destructive', title: 'Recording Error', description: 'Could not start recording. Your browser may not support this feature or codec.' });
-      threeSceneRef.current?.resize();
       return false;
     }
   };
@@ -289,7 +300,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     loadAudioUrl,
     togglePlay,
     seek,
-    analyser: analyser.current,
+    analyserNode: analyserNode,
     audioSrc,
     fileName,
     isPlaying,

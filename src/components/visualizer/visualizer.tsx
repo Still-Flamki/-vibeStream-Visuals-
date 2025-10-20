@@ -23,7 +23,7 @@ import { aspectRatios } from '@/contexts/visualizer-context';
 export default function Visualizer() {
   const { 
     audioSrc, 
-    analyser, 
+    analyserNode, 
     isPlaying, 
     mood, 
     visualizationType,
@@ -50,7 +50,6 @@ export default function Visualizer() {
       }
     };
     window.addEventListener('resize', handleResize);
-    // Initial resize
     handleResize();
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -106,7 +105,7 @@ export default function Visualizer() {
   const VisualizerContent = (
       <ThreeScene 
         ref={threeSceneRef}
-        analyserNode={analyser} 
+        analyserNode={analyserNode} 
         isPlaying={isPlaying} 
         mood={mood} 
         visualizationType={visualizationType} 
@@ -262,5 +261,3 @@ export default function Visualizer() {
     </div>
   );
 }
-
-    
