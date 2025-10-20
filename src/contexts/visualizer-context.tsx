@@ -37,7 +37,6 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
   // Cleanup function to dispose of Tone.js objects
   const cleanup = useCallback(() => {
-    cancelAnimationFrame(animationFrameId.current);
     if (Tone.Transport.state !== 'stopped') {
         Tone.Transport.stop();
         Tone.Transport.cancel();
@@ -47,7 +46,12 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     player.current = null;
     analyser.current = null;
     setIsPlaying(false);
+    setAudioSrc(null);
+    setFileName(null);
     setProgress(0);
+    if(animationFrameId.current) {
+      cancelAnimationFrame(animationFrameId.current);
+    }
   }, []);
   
   // Effect for cleanup on unmount
@@ -68,9 +72,10 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
       // Use an offline context to analyze without playing
       const offlineContext = new Tone.OfflineContext(buffer.duration, Tone.context.sampleRate, numberOfChannels);
-      const offlinePlayer = new Tone.Player(buffer).toDestination();
+      const offlinePlayer = new Tone.Player(buffer);
       const fft = new Tone.FFT({ size: 2048, context: offlineContext.rawContext as any });
       offlinePlayer.connect(fft);
+      offlinePlayer.toDestination(); // Connect to offline context's destination
       offlinePlayer.start(0);
 
       await offlineContext.render();
@@ -117,10 +122,12 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       
       analyser.current = new Tone.Analyser('fft', 2048);
       
-      const newPlayer = new Tone.Player(url).toDestination();
-      await Tone.loaded();
+      const newPlayer = new Tone.Player(url);
       
-      newPlayer.chain(analyser.current, Tone.Destination);
+      // Fan out the player's output to both the analyser and the main destination
+      newPlayer.fan(analyser.current, Tone.Destination);
+      
+      await Tone.loaded();
       player.current = newPlayer;
 
       setAudioSrc(url);
@@ -154,7 +161,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   const updateProgress = useCallback(() => {
     if (player.current && player.current.loaded && Tone.Transport.state === 'started') {
       const currentProgress = Tone.Transport.seconds / player.current.buffer.duration;
-      if (isFinite(currentProgress) && currentProgress <=1) {
+      if (isFinite(currentProgress) && currentProgress <= 1) {
         setProgress(currentProgress);
       } else if (currentProgress > 1) {
         setProgress(1);
@@ -162,9 +169,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
         Tone.Transport.stop();
         cancelAnimationFrame(animationFrameId.current);
       }
-    }
-    if(Tone.Transport.state === 'started') {
-        animationFrameId.current = requestAnimationFrame(updateProgress);
+      animationFrameId.current = requestAnimationFrame(updateProgress);
     }
   }, []);
   
@@ -178,6 +183,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       setIsPlaying(false);
       cancelAnimationFrame(animationFrameId.current);
     } else {
+      player.current.start(undefined, Tone.Transport.seconds);
       Tone.Transport.start();
       setIsPlaying(true);
       animationFrameId.current = requestAnimationFrame(updateProgress);
@@ -188,9 +194,16 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     if (player.current && player.current.loaded) {
       const duration = player.current.buffer.duration;
       if(isFinite(duration) && isFinite(newProgress) && newProgress >= 0 && newProgress <= 1) {
+        const wasPlaying = Tone.Transport.state === 'started';
+        if (wasPlaying) {
+          player.current.stop();
+        }
         const newTime = duration * newProgress;
         Tone.Transport.seconds = newTime;
         setProgress(newProgress);
+        if (wasPlaying) {
+          player.current.start(undefined, newTime);
+        }
       }
     }
   }, []);
