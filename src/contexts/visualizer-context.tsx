@@ -11,7 +11,6 @@ interface VisualizerContextType {
   loadAudioUrl: (url: string) => void;
   togglePlay: () => void;
   seek: (progress: number) => void;
-  player: Tone.Player | null;
   analyser: Tone.Analyser | null;
   audioSrc: string | null;
   fileName: string | null;
@@ -34,126 +33,122 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
   const player = useRef<Tone.Player | null>(null);
   const analyser = useRef<Tone.Analyser | null>(null);
-  const animationFrameId = useRef<number>();
 
-  const cleanup = () => {
-    if (animationFrameId.current) {
-        cancelAnimationFrame(animationFrameId.current);
+  // Cleanup function to dispose of Tone.js objects
+  const cleanup = useCallback(() => {
+    if (Tone.Transport.state === 'started') {
+        Tone.Transport.stop();
     }
-    Tone.Transport.stop();
     Tone.Transport.cancel();
     player.current?.dispose();
     analyser.current?.dispose();
     player.current = null;
     analyser.current = null;
-  };
+    setIsPlaying(false);
+    setProgress(0);
+    setAudioSrc(null);
+    setFileName(null);
+  }, []);
   
+  // Effect for cleanup on unmount
   useEffect(() => {
     return () => cleanup();
-  }, []);
+  }, [cleanup]);
 
+  // Vibe analysis based on frequency
   const analyzeAndSetMood = useCallback(async () => {
-    if (!analyser.current || !player.current || !player.current.loaded) return;
+    if (!player.current || !player.current.loaded) return;
 
     try {
-        const wasPlaying = Tone.Transport.state === 'started';
-        const originalTime = Tone.Transport.seconds;
-        if(wasPlaying) Tone.Transport.pause();
+      const buffer = player.current.buffer.get();
+      if (!buffer) return;
+
+      // Use an offline context to analyze without playing
+      const offlineContext = new Tone.OfflineContext(buffer.duration, Tone.context.sampleRate, buffer.numberOfChannels);
+      const offlinePlayer = new Tone.Player(buffer).toDestination();
+      const fft = new Tone.FFT({ size: 2048, context: offlineContext.rawContext as any });
+      offlinePlayer.connect(fft);
+      offlinePlayer.start(0);
+
+      await offlineContext.render();
+      
+      const frequencyData = fft.getValue();
+
+      if (frequencyData instanceof Float32Array) {
+        const fftSize = fft.size;
+        const sampleRate = offlineContext.sampleRate;
+        const bassEndIndex = Math.floor(250 / (sampleRate / fftSize));
+        const midEndIndex = Math.floor(4000 / (sampleRate / fftSize));
         
-        await Tone.start();
+        const bass = frequencyData.slice(0, bassEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
+        const mid = frequencyData.slice(bassEndIndex, midEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
+        const treble = frequencyData.slice(midEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
         
-        const buffer = player.current.buffer.get();
-        if (!buffer) return;
+        const total = bass + mid + treble || 1;
+        const bassRatio = bass / total;
+        const trebleRatio = treble / total;
 
-        const fft = new Tone.FFT(2048);
-        player.current.connect(fft);
+        let newMood: Mood = 'chill';
+        if (bassRatio > 0.45) newMood = 'dark';
+        else if (trebleRatio > 0.3) newMood = 'energetic';
+        else if (bassRatio > 0.3 && trebleRatio < 0.2) newMood = 'chill';
+        else newMood = 'happy';
         
-        const frequencyData = fft.getValue();
-
-        if (frequencyData instanceof Float32Array) {
-            const fftSize = fft.size;
-            const bassEndIndex = Math.floor(250 / (Tone.context.sampleRate / fftSize));
-            const midEndIndex = Math.floor(4000 / (Tone.context.sampleRate / fftSize));
-            
-            const bass = frequencyData.slice(0, bassEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
-            const mid = frequencyData.slice(bassEndIndex, midEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
-            const treble = frequencyData.slice(midEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
-            
-            const total = bass + mid + treble || 1;
-            const bassRatio = bass / total;
-            const trebleRatio = treble / total;
-
-            let newMood: Mood = 'chill';
-            if (bassRatio > 0.45) newMood = 'dark';
-            else if (trebleRatio > 0.3) newMood = 'energetic';
-            else if (bassRatio > 0.3 && trebleRatio < 0.2) newMood = 'chill';
-            else newMood = 'happy';
-            
-            setMood(newMood);
-        }
-
-        fft.dispose();
-        player.current.disconnect(fft);
-        if(wasPlaying) Tone.Transport.start(undefined, originalTime);
-
-
+        setMood(newMood);
+      }
+      fft.dispose();
+      offlinePlayer.dispose();
     } catch (error) {
       console.error("Error analyzing mood:", error);
       const moods: Mood[] = ['happy', 'dark', 'chill', 'energetic'];
-      const randomMood = moods[Math.floor(Math.random() * moods.length)];
-      setMood(randomMood);
-    } 
+      setMood(moods[Math.floor(Math.random() * moods.length)]);
+    }
   }, []);
 
   const loadAudio = useCallback(async (url: string, name?: string) => {
     setIsLoading(true);
-    cleanup(); // Clean up existing instances before loading new audio
-    
-    setAudioSrc(null);
-    setFileName(null);
-    setIsPlaying(false);
-    setProgress(0);
+    cleanup();
     
     try {
-        await Tone.start();
-        analyser.current = new Tone.Analyser('fft', 2048);
-        player.current = new Tone.Player(url, async () => {
-            // This callback runs after the audio is loaded
-            setAudioSrc(url);
-            setFileName(name || url.split('/').pop() || "Audio Track");
-            
-            Tone.Transport.stop();
-            Tone.Transport.seconds = 0;
-            setProgress(0);
-            
-            await analyzeAndSetMood();
-            setIsLoading(false);
-        }).chain(analyser.current, Tone.Destination);
-        
-        player.current.sync();
+      await Tone.start();
+      analyser.current = new Tone.Analyser('fft', 2048);
+      
+      player.current = await new Promise((resolve, reject) => {
+        const newPlayer = new Tone.Player(url, () => {
+          newPlayer.chain(analyser.current!, Tone.Destination);
+          resolve(newPlayer);
+        }).toDestination();
+        newPlayer.onerror = (err) => reject(err);
+      });
 
-        Tone.Transport.scheduleRepeat(() => {
-            if (player.current && player.current.loaded) {
-              const currentProgress = Tone.Transport.progress;
-              if (isFinite(currentProgress)) {
-                  setProgress(currentProgress);
-                  if (currentProgress >= 1) {
-                      Tone.Transport.stop();
-                      setIsPlaying(false);
-                      setProgress(1);
-                  }
-              }
+      setAudioSrc(url);
+      setFileName(name || url.split('/').pop() || "Audio Track");
+      
+      await analyzeAndSetMood();
+
+      // Schedule progress updates
+      Tone.Transport.scheduleRepeat((time) => {
+        if (player.current && player.current.loaded && player.current.state === 'started') {
+          const currentProgress = Tone.Transport.seconds / player.current.buffer.duration;
+          if (isFinite(currentProgress)) {
+            setProgress(currentProgress);
+            if (currentProgress >= 1) {
+              Tone.Transport.stop();
+              setProgress(1);
+              setIsPlaying(false);
             }
-        }, "0.1s");
+          }
+        }
+      }, 0.1);
 
     } catch(err) {
       console.error("Error loading audio:", err);
       toast({ variant: 'destructive', title: "Audio Error", description: "Failed to load audio. The file format may be unsupported or the URL may be invalid/protected by CORS." });
+      cleanup();
+    } finally {
       setIsLoading(false);
-      setAudioSrc(null);
-      setFileName(null);
     }
-  }, [analyzeAndSetMood, toast]);
+  }, [analyzeAndSetMood, toast, cleanup]);
 
   const loadAudioFile = (file: File) => {
     const url = URL.createObjectURL(file);
@@ -162,26 +157,25 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
   const loadAudioUrl = (url: string) => {
     if (!url.startsWith('http')) {
-        toast({ variant: 'destructive', title: "Invalid URL", description: "Please enter a valid URL." });
-        return;
+      toast({ variant: 'destructive', title: "Invalid URL", description: "Please enter a valid URL." });
+      return;
     }
     loadAudio(url);
   };
 
   const togglePlay = useCallback(async () => {
     if (!player.current || !player.current.loaded) return;
-
     await Tone.start();
 
     if (Tone.Transport.state === 'started') {
       Tone.Transport.pause();
       setIsPlaying(false);
     } else {
-      if (progress >= 1) { // If at the end, restart from 0
-        Tone.Transport.seconds = 0;
-        setProgress(0);
+      if (progress >= 1) { // If at the end, restart
+        Tone.Transport.start(undefined, 0);
+      } else {
+        Tone.Transport.start();
       }
-      Tone.Transport.start();
       setIsPlaying(true);
     }
   }, [progress]);
@@ -202,7 +196,6 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     loadAudioUrl,
     togglePlay,
     seek,
-    player: player.current,
     analyser: analyser.current,
     audioSrc,
     fileName,
