@@ -21,8 +21,6 @@ interface VisualizerContextType {
 
 const VisualizerContext = createContext<VisualizerContextType | undefined>(undefined);
 
-const moods: Mood[] = ['happy', 'dark', 'chill', 'energetic'];
-
 export function VisualizerProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const [audioSrc, setAudioSrc] = useState<string | null>(null);
@@ -60,19 +58,71 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const handleAudioLoad = useCallback(async () => {
+  const analyzeAndSetMood = useCallback(async () => {
+    if (!analyser.current || !player.current || !player.current.loaded) return;
+    
+    // We need to play a small snippet to get frequency data
+    const originalState = {
+      isPlaying: isPlaying,
+      progress: player.current.progress,
+    };
+
     try {
-      if (player.current) {
-        setIsLoading(false);
-        const randomMood = moods[Math.floor(Math.random() * moods.length)];
-        setMood(randomMood);
-        toast({ title: "Mood Detected", description: `The vibe is ${randomMood}!` });
+      // Mute, play a snippet, analyze, then revert
+      player.current.mute = true;
+      if (player.current.state !== 'started') {
+        await Tone.start();
+        player.current.start();
       }
+      
+      // Wait a moment for analysis
+      await new Promise(res => setTimeout(res, 200));
+
+      const frequencyData = analyser.current.getValue();
+
+      if (frequencyData instanceof Float32Array) {
+        const fftSize = analyser.current.size;
+        // Approximate frequency ranges
+        const bassEndIndex = Math.floor(250 / (Tone.context.sampleRate / fftSize));
+        const midEndIndex = Math.floor(4000 / (Tone.context.sampleRate / fftSize));
+        
+        const bass = frequencyData.slice(0, bassEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
+        const mid = frequencyData.slice(bassEndIndex, midEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
+        const treble = frequencyData.slice(midEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
+        
+        let newMood: Mood;
+        if (bass > mid && bass > treble) {
+          newMood = 'dark';
+        } else if (treble > bass && treble > mid) {
+          newMood = 'energetic';
+        } else if (mid > bass && mid > treble) {
+          newMood = 'happy';
+        } else {
+          newMood = 'chill';
+        }
+        
+        setMood(newMood);
+        toast({ title: "Mood Detected", description: `The vibe is ${newMood}!` });
+      }
+
     } catch (error) {
-      console.error("Error setting mood:", error);
-      toast({ variant: 'destructive', title: "Error", description: "Could not set the music's mood." });
+      console.error("Error analyzing mood:", error);
+      // fallback to random if analysis fails
+      const moods: Mood[] = ['happy', 'dark', 'chill', 'energetic'];
+      const randomMood = moods[Math.floor(Math.random() * moods.length)];
+      setMood(randomMood);
+    } finally {
+        // Revert player state
+        if (player.current) {
+            player.current.mute = false;
+            if (!originalState.isPlaying) {
+                player.current.stop();
+                player.current.seek(originalState.progress * player.current.buffer.duration);
+            }
+        }
     }
-  }, [toast]);
+  }, [isPlaying, toast]);
+
   
   const loadAudio = useCallback((url: string) => {
     if (!player.current) return;
@@ -87,14 +137,15 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
     player.current.load(url)
       .then(async () => {
-        handleAudioLoad();
+        setIsLoading(false);
+        await analyzeAndSetMood();
       })
       .catch(err => {
         console.error("Error loading audio:", err);
         toast({ variant: 'destructive', title: "Audio Error", description: "Failed to load audio." });
         setIsLoading(false);
       });
-  }, [handleAudioLoad, toast]);
+  }, [analyzeAndSetMood, toast]);
 
   const loadAudioFile = (file: File) => {
     const url = URL.createObjectURL(file);
@@ -136,8 +187,10 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       const duration = player.current.buffer.duration;
       if(isFinite(duration)) {
         const newTime = duration * progress;
-        player.current.seek(newTime);
-        setProgress(progress);
+        if (isFinite(newTime)) {
+          player.current.seek(newTime);
+          setProgress(progress);
+        }
       }
     }
   }, []);
