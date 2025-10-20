@@ -33,21 +33,22 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
   const player = useRef<Tone.Player | null>(null);
   const analyser = useRef<Tone.Analyser | null>(null);
+  const animationFrameId = useRef<number>(0);
 
   // Cleanup function to dispose of Tone.js objects
   const cleanup = useCallback(() => {
-    if (Tone.Transport.state === 'started') {
+    cancelAnimationFrame(animationFrameId.current);
+    if (Tone.Transport.state !== 'stopped') {
         Tone.Transport.stop();
+        Tone.Transport.cancel();
     }
-    Tone.Transport.cancel();
     player.current?.dispose();
     analyser.current?.dispose();
     player.current = null;
     analyser.current = null;
     setIsPlaying(false);
     setProgress(0);
-    setAudioSrc(null);
-    setFileName(null);
+    // Don't reset src and filename, so the UI knows what was loaded
   }, []);
   
   // Effect for cleanup on unmount
@@ -63,8 +64,11 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       const buffer = player.current.buffer.get();
       if (!buffer) return;
 
+      // Cap the number of channels to a valid range (e.g., 1 to 32, but 2 is safe)
+      const numberOfChannels = Math.max(1, Math.min(buffer.numberOfChannels, 2));
+
       // Use an offline context to analyze without playing
-      const offlineContext = new Tone.OfflineContext(buffer.duration, Tone.context.sampleRate, buffer.numberOfChannels);
+      const offlineContext = new Tone.OfflineContext(buffer.duration, Tone.context.sampleRate, numberOfChannels);
       const offlinePlayer = new Tone.Player(buffer).toDestination();
       const fft = new Tone.FFT({ size: 2048, context: offlineContext.rawContext as any });
       offlinePlayer.connect(fft);
@@ -107,44 +111,33 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
   const loadAudio = useCallback(async (url: string, name?: string) => {
     setIsLoading(true);
-    cleanup();
+    cleanup(); // Clean up previous instances before loading
     
     try {
       await Tone.start();
+      
       analyser.current = new Tone.Analyser('fft', 2048);
       
-      player.current = await new Promise((resolve, reject) => {
-        const newPlayer = new Tone.Player(url, () => {
-          newPlayer.chain(analyser.current!, Tone.Destination);
-          resolve(newPlayer);
+      const newPlayer = await new Promise<Tone.Player>((resolve, reject) => {
+        const p = new Tone.Player(url, () => {
+          p.chain(analyser.current!, Tone.Destination);
+          resolve(p);
         }).toDestination();
-        newPlayer.onerror = (err) => reject(err);
+        p.onerror = (err) => reject(err);
       });
+
+      player.current = newPlayer;
 
       setAudioSrc(url);
       setFileName(name || url.split('/').pop() || "Audio Track");
       
       await analyzeAndSetMood();
 
-      // Schedule progress updates
-      Tone.Transport.scheduleRepeat((time) => {
-        if (player.current && player.current.loaded && player.current.state === 'started') {
-          const currentProgress = Tone.Transport.seconds / player.current.buffer.duration;
-          if (isFinite(currentProgress)) {
-            setProgress(currentProgress);
-            if (currentProgress >= 1) {
-              Tone.Transport.stop();
-              setProgress(1);
-              setIsPlaying(false);
-            }
-          }
-        }
-      }, 0.1);
-
     } catch(err) {
       console.error("Error loading audio:", err);
       toast({ variant: 'destructive', title: "Audio Error", description: "Failed to load audio. The file format may be unsupported or the URL may be invalid/protected by CORS." });
-      cleanup();
+      setAudioSrc(null);
+      setFileName(null);
     } finally {
       setIsLoading(false);
     }
@@ -163,22 +156,35 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     loadAudio(url);
   };
 
+  const updateProgress = useCallback(() => {
+    if (player.current && player.current.loaded && Tone.Transport.state === 'started') {
+      const currentProgress = Tone.Transport.seconds / player.current.buffer.duration;
+      if (isFinite(currentProgress)) {
+        setProgress(currentProgress);
+      }
+    }
+    animationFrameId.current = requestAnimationFrame(updateProgress);
+  }, []);
+
   const togglePlay = useCallback(async () => {
     if (!player.current || !player.current.loaded) return;
+    
     await Tone.start();
 
     if (Tone.Transport.state === 'started') {
       Tone.Transport.pause();
       setIsPlaying(false);
+      cancelAnimationFrame(animationFrameId.current);
     } else {
-      if (progress >= 1) { // If at the end, restart
+       if (progress >= 1) { // If at the end, restart
         Tone.Transport.start(undefined, 0);
       } else {
         Tone.Transport.start();
       }
       setIsPlaying(true);
+      animationFrameId.current = requestAnimationFrame(updateProgress);
     }
-  }, [progress]);
+  }, [progress, updateProgress]);
 
   const seek = useCallback((newProgress: number) => {
     if (player.current && player.current.loaded) {
