@@ -37,12 +37,10 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   const animationFrameId = useRef<number>();
 
   useEffect(() => {
-    // Initialize Tone.js components
     analyser.current = new Tone.Analyser('fft', 2048);
     player.current = new Tone.Player().chain(analyser.current, Tone.Destination);
     player.current.sync().start(0);
-    
-    // Stop and clean up on component unmount
+
     return () => {
       if (animationFrameId.current) {
         cancelAnimationFrame(animationFrameId.current);
@@ -53,7 +51,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       analyser.current?.dispose();
     };
   }, []);
-
+  
   const updateProgress = useCallback(() => {
     if (player.current?.state === "started" && player.current.buffer.duration > 0) {
       const currentProgress = (Tone.Transport.seconds / player.current.buffer.duration);
@@ -62,11 +60,11 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
         if (currentProgress >= 1) {
           setIsPlaying(false);
           Tone.Transport.stop();
-          setProgress(1); // Set to 1 to show it's at the end
+          setProgress(1); 
           if (animationFrameId.current) {
             cancelAnimationFrame(animationFrameId.current);
           }
-          return; // Stop the loop
+          return;
         }
       }
     }
@@ -79,51 +77,47 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     const wasPlaying = Tone.Transport.state === 'started';
     const originalTime = Tone.Transport.seconds;
     
-    player.current.mute = true;
+    if (wasPlaying) {
+        Tone.Transport.pause();
+    }
 
     try {
-      if (wasPlaying) {
-        Tone.Transport.pause();
-      }
-
-      await Tone.start();
-      
-      player.current.start();
-      await new Promise(res => setTimeout(res, 300));
-
-      const frequencyData = analyser.current.getValue();
-      player.current.stop();
-
-      if (frequencyData instanceof Float32Array) {
-        const fftSize = analyser.current.size;
-        const bassEndIndex = Math.floor(250 / (Tone.context.sampleRate / fftSize));
-        const midEndIndex = Math.floor(4000 / (Tone.context.sampleRate / fftSize));
+        await Tone.start();
         
-        const bass = frequencyData.slice(0, bassEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
-        const mid = frequencyData.slice(bassEndIndex, midEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
-        const treble = frequencyData.slice(midEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
+        // Temporarily mute, seek to middle, play a short snippet, then restore.
+        player.current.mute = true;
+        const middleTime = player.current.buffer.duration / 2;
+        player.current.seek(middleTime);
+        player.current.start(Tone.now());
         
-        const total = bass + mid + treble || 1;
-        const bassRatio = bass / total;
-        const midRatio = mid / total;
-        const trebleRatio = treble / total;
+        // Wait for analysis
+        await new Promise(res => setTimeout(res, 300));
+        const frequencyData = analyser.current.getValue();
+        player.current.stop();
+        player.current.mute = false;
+        
+        if (frequencyData instanceof Float32Array) {
+            const fftSize = analyser.current.size;
+            const bassEndIndex = Math.floor(250 / (Tone.context.sampleRate / fftSize));
+            const midEndIndex = Math.floor(4000 / (Tone.context.sampleRate / fftSize));
+            
+            const bass = frequencyData.slice(0, bassEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
+            const mid = frequencyData.slice(bassEndIndex, midEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
+            const treble = frequencyData.slice(midEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
+            
+            const total = bass + mid + treble || 1;
+            const bassRatio = bass / total;
+            const trebleRatio = treble / total;
 
-        let newMood: Mood;
-
-        if (bassRatio > 0.35 && bassRatio > trebleRatio) {
-          newMood = 'dark';
-        } else if (trebleRatio > 0.3) {
-          newMood = 'energetic';
-        } else if (midRatio > 0.4) {
-          newMood = 'happy';
-        } else {
-          newMood = 'chill';
+            let newMood: Mood = 'chill';
+            if (bassRatio > 0.45) newMood = 'dark';
+            else if (trebleRatio > 0.3) newMood = 'energetic';
+            else if (bassRatio > 0.3 && trebleRatio < 0.2) newMood = 'chill';
+            else newMood = 'happy';
+            
+            setMood(newMood);
+            toast({ title: "Mood Detected", description: `The vibe is ${newMood}!` });
         }
-        
-        setMood(newMood);
-        toast({ title: "Mood Detected", description: `The vibe is ${newMood}!` });
-      }
-
     } catch (error) {
       console.error("Error analyzing mood:", error);
       const moods: Mood[] = ['happy', 'dark', 'chill', 'energetic'];
@@ -131,17 +125,14 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       setMood(randomMood);
     } finally {
         if (player.current) {
-          player.current.stop();
-          Tone.Transport.stop();
-          Tone.Transport.seconds = originalTime;
-          player.current.mute = false;
-          if (wasPlaying) {
-            Tone.Transport.start(undefined, originalTime);
-          }
+            player.current.stop();
+            Tone.Transport.seconds = originalTime;
+            if (wasPlaying) {
+                Tone.Transport.start(undefined, originalTime);
+            }
         }
     }
   }, [toast]);
-
   
   const loadAudio = useCallback(async (url: string, name?: string) => {
     if (!player.current) return;
@@ -150,10 +141,10 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     setFileName(null);
     
     if (Tone.Transport.state === 'started') {
-      Tone.Transport.stop();
-      if (animationFrameId.current) {
-        cancelAnimationFrame(animationFrameId.current);
-      }
+        Tone.Transport.stop();
+        if (animationFrameId.current) {
+            cancelAnimationFrame(animationFrameId.current);
+        }
     }
     setIsPlaying(false);
     setProgress(0);
@@ -167,7 +158,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       await analyzeAndSetMood();
     } catch(err) {
       console.error("Error loading audio:", err);
-      toast({ variant: 'destructive', title: "Audio Error", description: "Failed to load audio." });
+      toast({ variant: 'destructive', title: "Audio Error", description: "Failed to load audio. The file format may be unsupported or the URL may be invalid/protected by CORS." });
       setIsLoading(false);
       setAudioSrc(null);
       setFileName(null);
@@ -199,11 +190,15 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
         cancelAnimationFrame(animationFrameId.current);
       }
     } else {
+       if (progress >= 1) { // If at the end, restart from 0
+        Tone.Transport.seconds = 0;
+        setProgress(0);
+      }
       Tone.Transport.start();
       setIsPlaying(true);
       animationFrameId.current = requestAnimationFrame(updateProgress);
     }
-  }, [updateProgress]);
+  }, [progress, updateProgress]);
 
 
   const seek = useCallback((newProgress: number) => {
