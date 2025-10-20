@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { useVisualizer } from '@/contexts/visualizer-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -79,9 +79,25 @@ export default function ControlsPanel() {
     <Card className="h-full flex flex-col bg-card/80 backdrop-blur-sm">
       <CardHeader>
         <CardTitle className="font-headline text-2xl">Controls</CardTitle>
-        <CardDescription>Load your audio and shape the visuals.</CardDescription>
+        <CardDescription>Load audio and shape your visuals.</CardDescription>
       </CardHeader>
       <CardContent className="flex-grow flex flex-col gap-4">
+        
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold flex items-center gap-2"><Sparkles className="text-primary"/> Visual Style</h3>
+           <Select onValueChange={(value: VisualizationType) => setVisualizationType(value)} defaultValue={visualizationType}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a visualization" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="sphere_pulse">Sphere Pulse</SelectItem>
+              <SelectItem value="warp_drive">Warp Drive</SelectItem>
+              <SelectItem value="cosmic_web">Cosmic Web</SelectItem>
+              <SelectItem value="tidal_wave">Tidal Wave</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         <Tabs defaultValue="upload">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="upload"><Upload className="mr-2" /> Upload</TabsTrigger>
@@ -115,70 +131,59 @@ export default function ControlsPanel() {
             <p className="text-xs text-muted-foreground">Note: Streaming from many sites is blocked due to CORS policies.</p>
           </TabsContent>
         </Tabs>
-
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Playback</h3>
-          {fileName && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Music className="w-4 h-4" />
-              <span className="truncate flex-1">{fileName}</span>
-            </div>
-          )}
-          <div className="flex items-center gap-4">
-            <Button onClick={togglePlay} size="icon" className="rounded-full w-14 h-14" disabled={isLoading || !fileName}>
-              {isPlaying ? <Pause size={24} /> : <Play size={24} className="ml-1" />}
-            </Button>
-            <div className="w-full flex flex-col gap-2">
-              <Slider value={[progress * 100]} onValueChange={handleSeek} disabled={isLoading || !fileName}/>
-            </div>
-          </div>
-        </div>
         
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold flex items-center gap-2"><Sparkles className="text-primary"/> Visuals</h3>
-           <Select onValueChange={(value: VisualizationType) => setVisualizationType(value)} defaultValue={visualizationType}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select a visualization" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="sphere_pulse">Sphere Pulse</SelectItem>
-              <SelectItem value="warp_drive">Warp Drive</SelectItem>
-              <SelectItem value="cosmic_web">Cosmic Web</SelectItem>
-              <SelectItem value="tidal_wave">Tidal Wave</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <div className="flex items-center gap-2">
-              <span className="text-muted-foreground">Vibe:</span>
-              {isLoading ? (
-                  <Loader2 className="animate-spin" />
-              ) : (
-                  <Badge variant="secondary" className="capitalize text-base px-3 py-1 bg-accent/20 text-accent-foreground border-accent">{mood}</Badge>
-              )}
-          </div>
+        {fileName && (
+          <>
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Playback</h3>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Music className="w-4 h-4" />
+                <span className="truncate flex-1">{fileName}</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <Button onClick={togglePlay} size="icon" className="rounded-full w-14 h-14" disabled={isLoading || !fileName}>
+                  {isPlaying ? <Pause size={24} /> : <Play size={24} className="ml-1" />}
+                </Button>
+                <div className="w-full flex flex-col gap-2">
+                  <Slider value={[progress * 100]} onValueChange={handleSeek} disabled={isLoading || !fileName}/>
+                </div>
+              </div>
+            </div>
           
-          <div className="space-y-4 pt-2">
-            <div className='space-y-2'>
-              <Label htmlFor='particleSize'>Particle Size</Label>
-              <Slider id="particleSize" min={0.1} max={2} step={0.1} value={[controls.particleSize]} onValueChange={([val]) => setControls(c => ({...c, particleSize: val}))} />
-            </div>
-            <div className='space-y-2'>
-              <Label htmlFor='bassSensitivity'>Bass Reactivity</Label>
-              <Slider id="bassSensitivity" min={0} max={2} step={0.1} value={[controls.bassSensitivity]} onValueChange={([val]) => setControls(c => ({...c, bassSensitivity: val}))} />
-            </div>
-            <div className='space-y-2'>
-              <Label htmlFor='trebleSensitivity'>Treble Reactivity</Label>
-              <Slider id="trebleSensitivity" min={0} max={2} step={0.1} value={[controls.trebleSensitivity]} onValueChange={([val]) => setControls(c => ({...c, trebleSensitivity: val}))} />
-            </div>
-             <div className='space-y-2'>
-              <Label htmlFor='rotationSpeed'>Rotation Speed</Label>
-              <Slider id="rotationSpeed" min={0} max={2} step={0.1} value={[controls.rotationSpeed]} onValueChange={([val]) => setControls(c => ({...c, rotationSpeed: val}))} />
-            </div>
-          </div>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Vibe:</span>
+                  {isLoading ? (
+                      <Loader2 className="animate-spin" />
+                  ) : (
+                      <Badge variant="secondary" className="capitalize text-base px-3 py-1 bg-accent/20 text-accent-foreground border-accent">{mood}</Badge>
+                  )}
+              </div>
+              
+              <div className="space-y-4 pt-2">
+                <div className='space-y-2'>
+                  <Label htmlFor='particleSize'>Particle Size</Label>
+                  <Slider id="particleSize" min={0.1} max={2} step={0.1} value={[controls.particleSize]} onValueChange={([val]) => setControls(c => ({...c, particleSize: val}))} />
+                </div>
+                <div className='space-y-2'>
+                  <Label htmlFor='bassSensitivity'>Bass Reactivity</Label>
+                  <Slider id="bassSensitivity" min={0} max={2} step={0.1} value={[controls.bassSensitivity]} onValueChange={([val]) => setControls(c => ({...c, bassSensitivity: val}))} />
+                </div>
+                <div className='space-y-2'>
+                  <Label htmlFor='trebleSensitivity'>Treble Reactivity</Label>
+                  <Slider id="trebleSensitivity" min={0} max={2} step={0.1} value={[controls.trebleSensitivity]} onValueChange={([val]) => setControls(c => ({...c, trebleSensitivity: val}))} />
+                </div>
+                 <div className='space-y-2'>
+                  <Label htmlFor='rotationSpeed'>Rotation Speed</Label>
+                  <Slider id="rotationSpeed" min={0} max={2} step={0.1} value={[controls.rotationSpeed]} onValueChange={([val]) => setControls(c => ({...c, rotationSpeed: val}))} />
+                </div>
+              </div>
 
-        </div>
+            </div>
+          </>
+        )}
 
-        <div className="space-y-2">
+        <div className="space-y-2 mt-auto pt-4">
           <h3 className="text-lg font-semibold">Export & Share</h3>
           <div className="grid grid-cols-2 gap-2">
             <Button variant="outline" onClick={() => handleExport('MP4')}><Download className="mr-2"/> MP4</Button>
