@@ -51,6 +51,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   const animationFrameId = useRef<number>(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
+  const streamDestinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
 
   // Cleanup function to dispose of Tone.js objects
   const cleanup = useCallback(() => {
@@ -62,6 +63,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     analyser.current?.dispose();
     player.current = null;
     analyser.current = null;
+    streamDestinationRef.current = null;
     setIsPlaying(false);
     setAudioSrc(null);
     setFileName(null);
@@ -123,9 +125,11 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       await Tone.start();
       
       analyser.current = new Tone.Analyser('fft', 2048);
+      streamDestinationRef.current = Tone.context.createMediaStreamDestination();
+      
       const newPlayer = new Tone.Player();
       
-      newPlayer.fan(analyser.current, Tone.Destination);
+      newPlayer.fan(analyser.current, Tone.Destination, streamDestinationRef.current);
       
       await newPlayer.load(url);
       player.current = newPlayer;
@@ -210,10 +214,16 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const startRecording = (canvas: HTMLCanvasElement) => {
-    if (isRecording) return;
+    if (isRecording || !streamDestinationRef.current) return;
     try {
-      const stream = canvas.captureStream(30); // 30 FPS
-      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'video/webm' });
+      const videoStream = canvas.captureStream(30); // 30 FPS
+      const audioStream = streamDestinationRef.current.stream;
+      const combinedStream = new MediaStream([
+        ...videoStream.getVideoTracks(),
+        ...audioStream.getAudioTracks(),
+      ]);
+
+      mediaRecorderRef.current = new MediaRecorder(combinedStream, { mimeType: 'video/webm' });
       
       recordedChunksRef.current = [];
       mediaRecorderRef.current.ondataavailable = (event) => {
