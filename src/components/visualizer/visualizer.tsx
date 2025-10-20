@@ -15,13 +15,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from '../ui/badge';
 import { Label } from '../ui/label';
 import { Slider } from '../ui/slider';
+import { PhoneFrame } from './phone-frame';
 
-const aspectRatios: { [key: string]: { label: string; value: number } } = {
-  '16:9': { label: 'Widescreen (16:9)', value: 16 / 9 },
-  '9:16': { label: 'Portrait (9:16)', value: 9 / 16 },
-  '1:1': { label: 'Square (1:1)', value: 1 / 1 },
-  '4:5': { label: 'Social (4:5)', value: 4 / 5 },
-  '2.39:1': { label: 'Cinematic (2.39:1)', value: 2.39 / 1 },
+const aspectRatios: { [key: string]: { label: string; value: number, isMobile: boolean } } = {
+  '16:9': { label: 'Widescreen (16:9)', value: 16 / 9, isMobile: false },
+  '9:16': { label: 'Portrait (9:16)', value: 9 / 16, isMobile: true },
+  '1:1': { label: 'Square (1:1)', value: 1 / 1, isMobile: false },
+  '4:5': { label: 'Social (4:5)', value: 4 / 5, isMobile: true },
+  '2.39:1': { label: 'Cinematic (2.39:1)', value: 2.39 / 1, isMobile: false },
 };
 
 export default function Visualizer() {
@@ -88,12 +89,26 @@ export default function Visualizer() {
   };
 
   const isDisabled = isRecording;
+  const currentAspectRatioKey = Object.keys(aspectRatios).find(key => aspectRatios[key].value === aspectRatio) || '16:9';
+  const isMobileAspectRatio = aspectRatios[currentAspectRatioKey]?.isMobile;
+
+  const VisualizerContent = (
+      <ThreeScene 
+        ref={threeSceneRef}
+        analyserNode={analyser} 
+        isPlaying={isPlaying} 
+        mood={mood} 
+        visualizationType={visualizationType} 
+        controls={controls}
+        aspectRatio={aspectRatio}
+      />
+  );
 
   return (
     <div className="w-full flex-grow flex flex-col gap-4 min-h-0 items-center justify-center">
-       <div className="w-full h-full flex items-center justify-center">
+       <div className="w-full h-full flex items-center justify-center p-4">
         <Card 
-          className="relative rounded-lg overflow-hidden bg-black/50 shadow-2xl shadow-primary/20 max-h-full"
+          className="relative rounded-lg overflow-hidden bg-black/50 shadow-2xl shadow-primary/20 max-h-full w-full max-w-7xl"
           style={{aspectRatio: audioSrc ? aspectRatio : '16 / 9'}}
         >
           <CardContent className="p-0 h-full w-full">
@@ -123,15 +138,15 @@ export default function Visualizer() {
             )}
             
             {audioSrc ? (
-              <ThreeScene 
-                ref={threeSceneRef}
-                analyserNode={analyser} 
-                isPlaying={isPlaying} 
-                mood={mood} 
-                visualizationType={visualizationType} 
-                controls={controls}
-                aspectRatio={aspectRatio}
-              />
+              isMobileAspectRatio ? (
+                <div className="w-full h-full flex items-center justify-center bg-black p-4">
+                  <PhoneFrame>
+                    {VisualizerContent}
+                  </PhoneFrame>
+                </div>
+              ) : (
+                VisualizerContent
+              )
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center bg-card/80 backdrop-blur-sm p-8 text-center border border-primary/20 rounded-lg">
                 <VibeStreamIcon className="h-24 w-24 text-primary animate-pulse" />
@@ -198,7 +213,7 @@ export default function Visualizer() {
                       <Slider id="rotationSpeed" min={0} max={2} step={0.1} value={[controls.rotationSpeed]} onValueChange={([val]) => setControls(c => ({...c, rotationSpeed: val}))} disabled={isDisabled} />
                     </div>
                   </div>
-                  <div className='space-y-3 md:col-span-1'>
+                  <div className='space-y-3 md-col-span-1'>
                     <div className='space-y-1'>
                       <Label htmlFor='bassSensitivity' className="text-xs">Bass Reactivity</Label>
                       <Slider id="bassSensitivity" min={0} max={2} step={0.1} value={[controls.bassSensitivity]} onValueChange={([val]) => setControls(c => ({...c, bassSensitivity: val}))} disabled={isDisabled} />
