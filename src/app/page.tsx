@@ -45,7 +45,7 @@ export default function HomePage() {
       <Header />
       <main className="flex-grow">
         {/* Hero Section */}
-        <section className="container mx-auto text-center py-16 md:py-24">
+        <section className="container mx-auto text-center py-20 md:py-32">
           <div className="flex flex-col items-center">
             <VibeStreamIcon className="h-24 w-24 text-primary mb-6" />
             <h1 className="text-4xl md:text-6xl font-bold font-headline tracking-tight max-w-3xl">
@@ -75,22 +75,31 @@ export default function HomePage() {
         </section>
 
         {/* Features Section */}
-        <section className="bg-secondary/50 py-16 md:py-24">
+        <section className="bg-secondary/50 py-24">
             <div className="container mx-auto">
                 <div className="text-center mb-16">
                     <h2 className="text-4xl font-bold font-headline">A New Dimension of Audio</h2>
                     <p className="text-muted-foreground mt-4 max-w-2xl mx-auto">VibeStream Visuals isn't just a player; it's an instrument. Explore features designed to bring your music to life.</p>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-16 max-w-4xl mx-auto">
-                    {features.map((feature, index) => (
-                    <div key={index} className="flex items-start gap-6">
-                        <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12 max-w-6xl mx-auto">
+                    {features.slice(0, 3).map((feature, index) => (
+                    <div key={index} className="flex flex-col items-center text-center">
+                        <div className="p-4 bg-primary/10 rounded-lg border border-primary/20 mb-4">
                             {feature.icon}
                         </div>
-                        <div>
-                            <h3 className="text-xl font-bold font-headline">{feature.title}</h3>
-                            <p className="text-muted-foreground mt-2">{feature.description}</p>
+                        <h3 className="text-xl font-bold font-headline">{feature.title}</h3>
+                        <p className="text-muted-foreground mt-2">{feature.description}</p>
+                    </div>
+                    ))}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-12 max-w-4xl mx-auto mt-12">
+                     {features.slice(3).map((feature, index) => (
+                    <div key={index} className="flex flex-col items-center text-center">
+                        <div className="p-4 bg-primary/10 rounded-lg border border-primary/20 mb-4">
+                            {feature.icon}
                         </div>
+                        <h3 className="text-xl font-bold font-headline">{feature.title}</h3>
+                        <p className="text-muted-foreground mt-2">{feature.description}</p>
                     </div>
                     ))}
                 </div>
@@ -98,7 +107,7 @@ export default function HomePage() {
         </section>
 
         {/* CTA Section */}
-        <section className="container mx-auto text-center py-16 md:py-24">
+        <section className="container mx-auto text-center py-24">
              <h2 className="text-4xl font-bold font-headline">Ready to Create?</h2>
              <p className="mt-4 max-w-xl mx-auto text-lg text-muted-foreground">
                 Your next masterpiece is just a click away. Launch the visualizer and start your audiovisual journey.
