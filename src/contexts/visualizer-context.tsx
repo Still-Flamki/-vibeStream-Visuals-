@@ -64,25 +64,26 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     if (!player.current || !player.current.loaded) return;
 
     try {
-      const buffer = player.current.buffer.get();
-      if (!buffer) return;
+      // The analyser is already connected to the player, we can get data from it.
+      // To get a representative snapshot, we can average the analysis over a short period.
+      // However, for a quick analysis, a single snapshot can suffice.
+      const fft = new Tone.FFT({ size: 2048 });
+      player.current.connect(fft);
 
-      // Use an offline context to analyze without playing
-      // CORRECT FIX: Hardcode the number of channels to a safe value like 2 (stereo).
-      const offlineContext = new Tone.OfflineContext(buffer.duration, Tone.context.sampleRate, 2);
-      const offlinePlayer = new Tone.Player(buffer);
-      const fft = new Tone.FFT({ size: 2048, context: offlineContext.rawContext as any });
-      offlinePlayer.connect(fft);
-      offlinePlayer.toDestination(); // Connect to offline context's destination
-      offlinePlayer.start(0);
-
-      await offlineContext.render();
+      // We need to briefly play to get data. We can do this at 0 volume.
+      const originalVolume = Tone.Destination.volume.value;
+      Tone.Destination.volume.value = -Infinity; // Mute
       
+      player.current.start();
+      await new Promise(resolve => setTimeout(resolve, 200)); // Analyze for 200ms
       const frequencyData = fft.getValue();
+      player.current.stop();
 
+      Tone.Destination.volume.value = originalVolume; // Unmute
+      
       if (frequencyData instanceof Float32Array) {
         const fftSize = fft.size;
-        const sampleRate = offlineContext.sampleRate;
+        const sampleRate = Tone.context.sampleRate;
         const bassEndIndex = Math.floor(250 / (sampleRate / fftSize));
         const midEndIndex = Math.floor(4000 / (sampleRate / fftSize));
         
@@ -103,9 +104,9 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
         setMood(newMood);
       }
       fft.dispose();
-      offlinePlayer.dispose();
     } catch (error) {
       console.error("Error analyzing mood:", error);
+      // Fallback to random mood on error
       const moods: Mood[] = ['happy', 'dark', 'chill', 'energetic'];
       setMood(moods[Math.floor(Math.random() * moods.length)]);
     }
