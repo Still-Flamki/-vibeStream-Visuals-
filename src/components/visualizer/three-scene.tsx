@@ -98,8 +98,8 @@ export default function ThreeScene({ analyserNode, isPlaying, mood }: ThreeScene
             const upperHalf = frequencyData.slice(frequencyData.length / 2);
             const upperAvg = upperHalf.reduce((a, b) => a + Math.abs(b), 0) / upperHalf.length;
 
-            const bassBoost = (lowerAvg / 100) * 20; // Bass affects radius
-            const trebleBoost = (upperAvg / 100) * 1.5; // Treble affects color/flicker
+            const bassBoost = (lowerAvg / 100) * 20;
+            const trebleBoost = (upperAvg / 100) * 1.5;
 
             const {c1, c2} = moodColors[mood];
 
@@ -110,25 +110,31 @@ export default function ThreeScene({ analyserNode, isPlaying, mood }: ThreeScene
                 const iy = initialPositions[i3 + 1];
                 const iz = initialPositions[i3 + 2];
                 const r = Math.sqrt(ix*ix + iy*iy + iz*iz);
+
+                const freqValue = frequencyData[i % frequencyData.length] || 0;
+                const displacement = isFinite(bassBoost) ? bassBoost * (freqValue / 20) : 0;
                 
-                const newRadius = r + bassBoost * (frequencyData[i % frequencyData.length] / 20);
+                const newRadius = r + displacement;
                 
-                let x = 0, y = 0, z = 0;
-                if (r > 0) {
-                    x = (ix / r) * newRadius;
-                    y = (iy / r) * newRadius;
-                    z = (iz / r) * newRadius;
+                let x = ix, y = iy, z = iz;
+                if (r > 0 && isFinite(newRadius)) {
+                    const ratio = newRadius / r;
+                    x = ix * ratio;
+                    y = iy * ratio;
+                    z = iz * ratio;
                 }
 
-                // Ensure values are not NaN before setting
-                if (!isNaN(x) && !isNaN(y) && !isNaN(z)) {
-                    positionAttribute.setXYZ(i, x, y, z);
+                // Final check to prevent any NaN values from slipping through.
+                if (isFinite(x) && isFinite(y) && isFinite(z)) {
+                  positionAttribute.setXYZ(i, x, y, z);
+                } else {
+                  positionAttribute.setXYZ(i, ix, iy, iz); // Fallback to initial position
                 }
-
 
                 const mixFactor = (iy / r + 1) / 2;
                 const color = c1.clone().lerp(c2, isNaN(mixFactor) ? 0.5 : mixFactor);
-                color.multiplyScalar(1 + trebleBoost * Math.random());
+                const colorBoost = isFinite(trebleBoost) ? 1 + trebleBoost * Math.random() : 1;
+                color.multiplyScalar(colorBoost);
                 colorAttribute.setXYZ(i, color.r, color.g, color.b);
             }
             positionAttribute.needsUpdate = true;
