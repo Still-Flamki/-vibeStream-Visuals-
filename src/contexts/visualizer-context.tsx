@@ -14,6 +14,7 @@ interface VisualizerContextType {
   player: Tone.Player | null;
   analyser: Tone.Analyser | null;
   audioSrc: string | null;
+  fileName: string | null;
   isPlaying: boolean;
   mood: Mood;
   isLoading: boolean;
@@ -25,6 +26,7 @@ const VisualizerContext = createContext<VisualizerContextType | undefined>(undef
 export function VisualizerProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const [audioSrc, setAudioSrc] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [mood, setMood] = useState<Mood>('chill');
   const [isLoading, setIsLoading] = useState(false);
@@ -77,28 +79,24 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     
     const wasPlaying = Tone.Transport.state === 'started';
     const originalTime = Tone.Transport.seconds;
+    
+    // Temporarily mute to avoid audible blip during analysis
     const isMuted = player.current.mute;
+    player.current.mute = true;
 
     try {
-      player.current.mute = true;
       if (wasPlaying) {
         Tone.Transport.pause();
       }
 
       await Tone.start();
       
-      // Ensure the buffer is loaded before playing
-      if (!player.current.loaded) {
-          await player.current.load(player.current.buffer.url);
-      }
-      
-      player.current.start(Tone.now(), 0);
-      Tone.Transport.start();
-      
-      await new Promise(res => setTimeout(res, 300));
+      // We need to play a small portion to get data
+      player.current.start();
+      await new Promise(res => setTimeout(res, 300)); // Let it play for a moment
 
       const frequencyData = analyser.current.getValue();
-      player.current.stop();
+      player.current.stop(); // Stop the analysis playback
 
       if (frequencyData instanceof Float32Array) {
         const fftSize = analyser.current.size;
@@ -132,16 +130,18 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
     } catch (error) {
       console.error("Error analyzing mood:", error);
+      // Fallback to a random mood on error
       const moods: Mood[] = ['happy', 'dark', 'chill', 'energetic'];
       const randomMood = moods[Math.floor(Math.random() * moods.length)];
       setMood(randomMood);
     } finally {
         if (player.current) {
           player.current.stop();
-          Tone.Transport.stop();
-          Tone.Transport.seconds = originalTime;
-          player.current.mute = isMuted;
+          Tone.Transport.stop(); // Fully stop and reset transport
+          Tone.Transport.seconds = originalTime; // Restore original time
+          player.current.mute = isMuted; // Restore mute state
           if (wasPlaying) {
+             // If it was playing, restart transport from original time
             Tone.Transport.start(undefined, originalTime);
           }
         }
@@ -149,10 +149,11 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   }, [toast]);
 
   
-  const loadAudio = useCallback(async (url: string) => {
+  const loadAudio = useCallback(async (url: string, name?: string) => {
     if (!player.current) return;
     setIsLoading(true);
     setAudioSrc(url);
+    setFileName(name || url);
 
     if (Tone.Transport.state === 'started') {
       Tone.Transport.stop();
@@ -178,7 +179,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
   const loadAudioFile = (file: File) => {
     const url = URL.createObjectURL(file);
-    loadAudio(url);
+    loadAudio(url, file.name);
   };
 
   const loadAudioUrl = (url: string) => {
@@ -186,7 +187,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
         toast({ variant: 'destructive', title: "Invalid URL", description: "Please enter a valid URL." });
         return;
     }
-    loadAudio(url);
+    loadAudio(url, url.split('/').pop());
   };
   
   const togglePlay = useCallback(async () => {
@@ -208,6 +209,11 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
           setProgress(0);
       }
       
+      // player.start() is implicitly handled by Tone.Transport.start() for a player that is scheduled to play
+      // We just need to make sure the player is not stopped.
+      if (player.current.state !== "started") {
+          player.current.start(undefined, startTime);
+      }
       Tone.Transport.start(Tone.now(), startTime);
       setIsPlaying(true);
       animationFrameId.current = requestAnimationFrame(updateProgress);
@@ -236,6 +242,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     player: player.current,
     analyser: analyser.current,
     audioSrc,
+    fileName,
     isPlaying,
     mood,
     isLoading,

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -9,14 +10,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
-import { Upload, Link, Play, Pause, Download, Share2, Loader2 } from 'lucide-react';
+import { Upload, Link, Play, Pause, Download, Share2, Loader2, Music } from 'lucide-react';
 
 export default function ControlsPanel() {
   const { 
     loadAudioFile, 
     loadAudioUrl,
     togglePlay, 
-    isPlaying, 
+    isPlaying,
+    fileName,
     mood,
     isLoading,
     progress,
@@ -109,12 +111,18 @@ export default function ControlsPanel() {
 
         <div className="space-y-4">
           <h3 className="text-lg font-semibold">Playback</h3>
+          {fileName && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Music className="w-4 h-4" />
+              <span className="truncate flex-1">{fileName}</span>
+            </div>
+          )}
           <div className="flex items-center gap-4">
-            <Button onClick={togglePlay} size="icon" className="rounded-full w-14 h-14" disabled={isLoading}>
+            <Button onClick={togglePlay} size="icon" className="rounded-full w-14 h-14" disabled={isLoading || !fileName}>
               {isPlaying ? <Pause size={24} /> : <Play size={24} className="ml-1" />}
             </Button>
             <div className="w-full flex flex-col gap-2">
-              <Slider value={[progress * 100]} onValueChange={handleSeek} disabled={isLoading}/>
+              <Slider value={[progress * 100]} onValueChange={handleSeek} disabled={isLoading || !fileName}/>
             </div>
           </div>
         </div>
