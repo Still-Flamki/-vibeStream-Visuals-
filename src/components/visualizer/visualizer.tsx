@@ -13,8 +13,8 @@ export default function Visualizer() {
   const threeSceneRef = useRef<ThreeSceneHandle>(null);
 
   return (
-    <div className="w-full max-w-7xl mx-auto grid grid-cols-1 xl:grid-cols-4 gap-6 p-4 md:p-6 h-full flex-grow">
-      <Card className="xl:col-span-3 aspect-video relative rounded-lg overflow-hidden bg-black shadow-2xl shadow-primary/20 border-accent/20">
+    <div className="w-full max-w-7xl mx-auto grid grid-cols-1 xl:grid-cols-4 gap-6 p-4 md:p-6 h-full">
+      <Card className="xl:col-span-3 h-full relative rounded-lg overflow-hidden bg-black shadow-2xl shadow-primary/20 border-accent/20">
         <CardContent className="p-0 h-full w-full">
           {audioSrc ? (
             <ThreeScene 
@@ -36,11 +36,9 @@ export default function Visualizer() {
           )}
         </CardContent>
       </Card>
-      <div className="xl:col-span-1">
+      <div className="xl:col-span-1 h-full">
         <ControlsPanel threeSceneRef={threeSceneRef} />
       </div>
     </div>
   );
 }
-
-    
