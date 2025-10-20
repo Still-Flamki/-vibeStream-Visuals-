@@ -143,12 +143,12 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
         await Tone.start();
       }
       
+      const newAnalyser = new Tone.Analyser('fft', 1024);
       const newPlayer = new Tone.Player({
           url,
           onload: async () => {
-              const newAnalyser = new Tone.Analyser('fft', 1024);
-              analyser.current = newAnalyser;
               player.current = newPlayer;
+              analyser.current = newAnalyser;
               
               setAnalyserNode(newAnalyser);
               setAudioSrc(url);

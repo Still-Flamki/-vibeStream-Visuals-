@@ -4,4 +4,4 @@ export type VisualizationType = 'sphere_pulse' | 'warp_drive' | 'cosmic_web' | '
 
 export type VideoQuality = '720p' | '1080p' | '4k';
 
-export type ColorMode = 'mood' | 'multicolor' | 'custom';
+export type ColorMode = 'mood' | 'multicolor' | 'crimson' | 'ocean' | 'lime';

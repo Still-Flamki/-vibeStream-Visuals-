@@ -15,6 +15,13 @@ const moodColors: Record<Mood, { c1: THREE.Color; c2: THREE.Color }> = {
   energetic: { c1: new THREE.Color('#FF00FF'), c2: new THREE.Color('#FF4500') },
 };
 
+const presetColors: { [key: string]: THREE.Color } = {
+  crimson: new THREE.Color('#DC143C'),
+  ocean: new THREE.Color('#0077be'),
+  lime: new THREE.Color('#32CD32'),
+};
+
+
 export interface ThreeSceneHandle {
   getCanvas: () => HTMLCanvasElement | null;
   resize: () => void;
@@ -63,7 +70,7 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
   const updateVisuals = () => {
     if (!visualRef.current) return;
 
-    const { analyserNode, isPlaying, mood, visualizationType, controls, colorMode, customColor } = latestProps.current;
+    const { analyserNode, isPlaying, mood, visualizationType, controls, colorMode } = latestProps.current;
     const geometry = (visualRef.current.geometry as THREE.BufferGeometry);
     if (!geometry) return;
     const positionAttribute = geometry.getAttribute('position');
@@ -99,7 +106,6 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
 
     const time = clockRef.current.getElapsedTime();
     
-    const customColorObj = new THREE.Color(customColor);
     const { c1, c2 } = moodColors[mood];
 
     for (let i = 0; i < positionAttribute.count; i++) {
@@ -174,8 +180,10 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
                     const hue = (time * 0.1 + ix * 0.01) % 1;
                     color.setHSL(hue, 1, 0.5);
                     break;
-                case 'custom':
-                    color = customColorObj;
+                case 'crimson':
+                case 'ocean':
+                case 'lime':
+                    color = presetColors[colorMode];
                     break;
             }
             

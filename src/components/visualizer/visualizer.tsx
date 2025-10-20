@@ -165,18 +165,11 @@ export default function Visualizer() {
                         <SelectContent>
                             <SelectItem value="mood">Mood-Based</SelectItem>
                             <SelectItem value="multicolor">Multicolor</SelectItem>
-                            <SelectItem value="custom">Custom</SelectItem>
+                            <SelectItem value="crimson">Crimson</SelectItem>
+                            <SelectItem value="ocean">Ocean</SelectItem>
+                            <SelectItem value="lime">Lime</SelectItem>
                         </SelectContent>
                       </Select>
-                      {colorMode === 'custom' && (
-                        <Input 
-                          type="color" 
-                          value={customColor}
-                          onChange={(e) => setCustomColor(e.target.value)}
-                          className="w-12 h-10 p-1 bg-card/50 backdrop-blur-sm border-primary/20"
-                          disabled={isDisabled}
-                        />
-                      )}
                     </div>
                 </div>
 
