@@ -108,7 +108,7 @@ export default function ControlsPanel({ threeSceneRef }: ControlsPanelProps) {
         <CardTitle className="font-headline text-2xl">Controls</CardTitle>
         <CardDescription>Load audio and shape your visuals.</CardDescription>
       </CardHeader>
-      <CardContent className="flex-grow flex flex-col gap-3">
+      <CardContent className="flex-grow flex flex-col gap-4">
         <div className="space-y-2">
           <h3 className="text-lg font-semibold flex items-center gap-2"><Sparkles className="text-primary"/> Visual Style</h3>
            <Select onValueChange={(value: VisualizationType) => setVisualizationType(value)} defaultValue={visualizationType} disabled={isDisabled}>
@@ -161,7 +161,7 @@ export default function ControlsPanel({ threeSceneRef }: ControlsPanelProps) {
         </Tabs>
         
         {audioSrc && (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Music className="w-4 h-4" />
               <span className="truncate flex-1">{fileName}</span>
@@ -184,7 +184,7 @@ export default function ControlsPanel({ threeSceneRef }: ControlsPanelProps) {
                 )}
             </div>
             
-            <div className="space-y-3 pt-1">
+            <div className="space-y-4 pt-2">
               <div className='space-y-2'>
                 <Label htmlFor='particleSize'>Particle Size</Label>
                 <Slider id="particleSize" min={0.1} max={2} step={0.1} value={[controls.particleSize]} onValueChange={([val]) => setControls(c => ({...c, particleSize: val}))} disabled={isDisabled} />
@@ -208,7 +208,7 @@ export default function ControlsPanel({ threeSceneRef }: ControlsPanelProps) {
         <div className="flex-grow" />
 
         {audioSrc && (
-          <div className="space-y-2 pt-2">
+          <div className="space-y-3 pt-2">
             <h3 className="text-lg font-semibold">Export & Share</h3>
             <div className="grid grid-cols-2 gap-2">
                <DropdownMenu>
