@@ -72,7 +72,7 @@ export default function StudioPage() {
                 </Accordion>
             </SidebarContent>
         </Sidebar>
-        <SidebarInset className="flex-grow flex flex-col p-4 gap-4">
+        <SidebarInset className="flex flex-col p-4 gap-4">
             <main className="flex-grow flex items-center justify-center rounded-lg bg-black/30 border border-border overflow-hidden">
                 <StudioScene backgroundColor={backgroundColor} />
             </main>
