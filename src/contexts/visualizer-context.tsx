@@ -40,11 +40,11 @@ const qualitySettings = {
 };
 
 const aspectRatios: { [key: string]: { label: string; value: number, isMobile: boolean } } = {
-  '16:9': { label: 'Widescreen (16:9)', value: 16 / 9, isMobile: false },
+  '16:9': { label: 'Widescreen (16:9)', value: 16 / 9, isMobile: true },
   '9:16': { label: 'Portrait (9:16)', value: 9 / 16, isMobile: true },
   '1:1': { label: 'Square (1:1)', value: 1 / 1, isMobile: false },
   '4:5': { label: 'Social (4:5)', value: 4 / 5, isMobile: true },
-  '2.39:1': { label: 'Cinematic (2.39:1)', value: 2.39 / 1, isMobile: false },
+  '2.39:1': { label: 'Cinematic (2.39:1)', value: 2.39 / 1, isMobile: true },
 };
 
 export function VisualizerProvider({ children }: { children: ReactNode }) {
