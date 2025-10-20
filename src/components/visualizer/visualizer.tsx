@@ -8,7 +8,7 @@ import { VibeStreamIcon } from '../icons';
 import { useRef, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '../ui/dropdown-menu';
-import { Video, Download, Share2, CircleDot, Sparkles, Loader2, Crop } from 'lucide-react';
+import { Video, Download, Share2, CircleDot, Sparkles, Loader2, Crop, Undo2, Redo2, RotateCcw, RotateCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { VideoQuality, VisualizationType } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
@@ -16,13 +16,14 @@ import { Badge } from '../ui/badge';
 import { Label } from '../ui/label';
 import { Slider } from '../ui/slider';
 import { PhoneFrame } from './phone-frame';
+import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
 
 const aspectRatios: { [key: string]: { label: string; value: number, isMobile: boolean } } = {
-  '16:9': { label: 'Widescreen (16:9)', value: 16 / 9, isMobile: false },
+  '16:9': { label: 'Widescreen (16:9)', value: 16 / 9, isMobile: true },
   '9:16': { label: 'Portrait (9:16)', value: 9 / 16, isMobile: true },
   '1:1': { label: 'Square (1:1)', value: 1 / 1, isMobile: false },
   '4:5': { label: 'Social (4:5)', value: 4 / 5, isMobile: true },
-  '2.39:1': { label: 'Cinematic (2.39:1)', value: 2.39 / 1, isMobile: false },
+  '2.39:1': { label: 'Cinematic (2.39:1)', value: 2.39 / 1, isMobile: true },
 };
 
 export default function Visualizer() {
@@ -88,6 +89,13 @@ export default function Visualizer() {
       description: 'Your creation is ready to be shared. This feature is coming soon!',
     });
     console.log('Share requested.');
+  };
+
+  const handleRotationSet = (axis: 'x' | 'y' | 'z', degrees: number) => {
+    setControls(c => ({
+      ...c,
+      rotation: { ...c.rotation, [axis]: THREE.MathUtils.degToRad(degrees) }
+    }));
   };
 
   const isDisabled = isRecording;
@@ -164,7 +172,7 @@ export default function Visualizer() {
       {audioSrc && (
           <Card className="bg-card/50 backdrop-blur-sm w-full max-w-7xl">
             <CardContent className="p-4 flex items-center gap-6">
-              <div className="flex-grow grid grid-cols-1 md:grid-cols-4 gap-6 items-center">
+              <div className="flex-grow grid grid-cols-1 md:grid-cols-5 gap-6 items-center">
                   <div className='space-y-3 md:col-span-1'>
                       <div className="space-y-2">
                           <h3 className="text-sm font-semibold flex items-center gap-2"><Sparkles className="text-primary h-4 w-4"/> Visual Style</h3>
@@ -194,8 +202,49 @@ export default function Visualizer() {
                           </Select>
                       </div>
                   </div>
-                  <div className='space-y-3 md:col-span-1 flex items-center justify-center'>
-                    <div className="flex items-center gap-2 pt-5">
+                  <div className='space-y-3 md:col-span-1'>
+                    <div className='space-y-1'>
+                      <Label className="text-xs">Bass Reactivity</Label>
+                      <Slider id="bassSensitivity" min={0} max={2} step={0.1} value={[controls.bassSensitivity]} onValueChange={([val]) => setControls(c => ({...c, bassSensitivity: val}))} disabled={isDisabled} />
+                    </div>
+                    <div className='space-y-1'>
+                      <Label className="text-xs">Treble Reactivity</Label>                      
+                      <Slider id="trebleSensitivity" min={0} max={2} step={0.1} value={[controls.trebleSensitivity]} onValueChange={([val]) => setControls(c => ({...c, trebleSensitivity: val}))} disabled={isDisabled} />
+                    </div>
+                    <div className='space-y-1'>
+                      <Label className="text-xs">Particle Size</Label>
+                      <Slider id="particleSize" min={0.1} max={2} step={0.1} value={[controls.particleSize]} onValueChange={([val]) => setControls(c => ({...c, particleSize: val}))} disabled={isDisabled} />
+                    </div>
+                  </div>
+                  <div className='space-y-3 md:col-span-2'>
+                     <div className='space-y-1'>
+                      <Label className="text-xs">Rotation Speed</Label>
+                      <Slider min={0} max={2} step={0.1} value={[controls.rotation.speed]} onValueChange={([val]) => setControls(c => ({...c, rotation: {...c.rotation, speed: val}}))} disabled={isDisabled} />
+                    </div>
+                    <div className='flex gap-2 items-center'>
+                      <Label className="text-xs">Direction</Label>
+                      <ToggleGroup 
+                        type="single" 
+                        size="sm" 
+                        variant="outline"
+                        value={controls.rotation.direction}
+                        onValueChange={(value) => setControls(c => ({...c, rotation: {...c.rotation, direction: value as 'left' | 'right' | 'none' || 'none'}}))}
+                        disabled={isDisabled}
+                      >
+                        <ToggleGroupItem value="left" aria-label="Rotate left"><Undo2/></ToggleGroupItem>
+                        <ToggleGroupItem value="right" aria-label="Rotate right"><Redo2/></ToggleGroupItem>
+                      </ToggleGroup>
+                    </div>
+                     <div className='flex gap-2 items-center'>
+                      <Label className="text-xs">Set Angle</Label>
+                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleRotationSet('y', 90)} disabled={isDisabled}><RotateCcw /></Button>
+                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleRotationSet('y', 180)} disabled={isDisabled}><RotateCw /></Button>
+                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleRotationSet('y', 360)} disabled={isDisabled}>360</Button>
+                    </div>
+                  </div>
+
+                  <div className='space-y-3 md:col-span-1 flex items-center justify-center pt-4'>
+                    <div className="flex items-center gap-2">
                       <span className="text-muted-foreground text-sm">Vibe:</span>
                       {isLoading ? (
                           <Loader2 className="animate-spin" />
@@ -203,25 +252,6 @@ export default function Visualizer() {
                           <Badge variant="secondary" className="capitalize text-sm px-3 py-1 bg-accent/20 text-accent-foreground border-accent/50">{mood}</Badge>
                       )}
                       </div>
-                  </div>
-                  <div className='space-y-3 md:col-span-1'>
-                    <div className='space-y-1'>
-                      <Label htmlFor='particleSize' className="text-xs">Particle Size</Label>
-                      <Slider id="particleSize" min={0.1} max={2} step={0.1} value={[controls.particleSize]} onValueChange={([val]) => setControls(c => ({...c, particleSize: val}))} disabled={isDisabled} />
-                    </div>
-                    <div className='space-y-1'>
-                      <Label htmlFor='rotationSpeed' className="text-xs">Rotation Speed</Label>
-                      <Slider id="rotationSpeed" min={0} max={2} step={0.1} value={[controls.rotationSpeed]} onValueChange={([val]) => setControls(c => ({...c, rotationSpeed: val}))} disabled={isDisabled} />
-                    </div>
-                  </div>
-                  <div className='space-y-3 md-col-span-1'>
-                    <div className='space-y-1'>
-                      <Label htmlFor='bassSensitivity' className="text-xs">Bass Reactivity</Label>
-                      <Slider id="bassSensitivity" min={0} max={2} step={0.1} value={[controls.bassSensitivity]} onValueChange={([val]) => setControls(c => ({...c, bassSensitivity: val}))} disabled={isDisabled} />
-                    </div>
-                    <div className='space-y-1'>
-                      <Label htmlFor='trebleSensitivity' className="text-xs">Treble Reactivity</Label>                      <Slider id="trebleSensitivity" min={0} max={2} step={0.1} value={[controls.trebleSensitivity]} onValueChange={([val]) => setControls(c => ({...c, trebleSensitivity: val}))} disabled={isDisabled} />
-                    </div>
                   </div>
                 </div>
             </CardContent>

@@ -6,7 +6,13 @@ export type VisualizerControls = {
   particleSize: number;
   bassSensitivity: number;
   trebleSensitivity: number;
-  rotationSpeed: number;
+  rotation: {
+    speed: number;
+    direction: 'left' | 'right' | 'none';
+    x: number;
+    y: number;
+    z: number;
+  };
 };
 
 export type ThreeSceneProps = {

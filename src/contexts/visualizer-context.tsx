@@ -61,7 +61,13 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     particleSize: 0.8,
     bassSensitivity: 1.0,
     trebleSensitivity: 1.0,
-    rotationSpeed: 0.5,
+    rotation: {
+      speed: 0.5,
+      direction: 'right',
+      x: 0,
+      y: 0,
+      z: 0,
+    }
   });
   const [isRecording, setIsRecording] = useState(false);
 
