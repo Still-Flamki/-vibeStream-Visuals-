@@ -13,6 +13,7 @@ import { Slider } from '@/components/ui/slider';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import * as THREE from 'three';
 
 type Vector3 = {
     x: number;
@@ -29,22 +30,44 @@ export type SceneObject = {
     position: Vector3;
     rotation: Vector3;
     scale: Vector3;
+    color: string;
 };
 
 let objectCount = 1;
 
+const createNewObject = (): SceneObject => {
+    objectCount++;
+    const newId = `object-${objectCount}`;
+    const randomColor = new THREE.Color().setHSL(Math.random(), 0.7, 0.6).getHexString();
+
+    return {
+        id: newId,
+        name: `Object ${objectCount}`,
+        shape: 'cube',
+        position: { x: (Math.random() - 0.5) * 10, y: 0.5, z: (Math.random() - 0.5) * 10 },
+        rotation: { x: 0, y: 0, z: 0 },
+        scale: { x: 1, y: 1, z: 1 },
+        color: `#${randomColor}`,
+    };
+};
+
 export default function StudioPage() {
   const [backgroundColor, setBackgroundColor] = useState('#1a1a1a');
 
-  const [objects, setObjects] = useState<Record<string, SceneObject>>({
-    'default-cube': {
-        id: 'default-cube',
-        name: 'Default Cube',
-        shape: 'cube',
-        position: { x: 0, y: 0.5, z: 0 },
-        rotation: { x: 0, y: 0, z: 0 },
-        scale: { x: 1, y: 1, z: 1 },
-    }
+  const [objects, setObjects] = useState<Record<string, SceneObject>>(() => {
+    const defaultId = 'default-cube';
+    const defaultColor = new THREE.Color(0x9b59b6).getHexString();
+    return {
+        [defaultId]: {
+            id: defaultId,
+            name: 'Default Cube',
+            shape: 'cube',
+            position: { x: 0, y: 0.5, z: 0 },
+            rotation: { x: 0, y: 0, z: 0 },
+            scale: { x: 1, y: 1, z: 1 },
+            color: `#${defaultColor}`
+        }
+    };
   });
 
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>('default-cube');
@@ -66,18 +89,9 @@ export default function StudioPage() {
   };
 
   const handleAddObject = () => {
-    objectCount++;
-    const newId = `cube-${objectCount}`;
-    const newObject: SceneObject = {
-        id: newId,
-        name: `Object ${objectCount}`,
-        shape: 'cube',
-        position: { x: (Math.random() - 0.5) * 10, y: 0.5, z: (Math.random() - 0.5) * 10 },
-        rotation: { x: 0, y: 0, z: 0 },
-        scale: { x: 1, y: 1, z: 1 },
-    };
-    setObjects(prev => ({ ...prev, [newId]: newObject }));
-    setSelectedObjectId(newId);
+    const newObject = createNewObject();
+    setObjects(prev => ({ ...prev, [newObject.id]: newObject }));
+    setSelectedObjectId(newObject.id);
   };
   
   const handleDeleteObject = (id: string) => {
@@ -87,7 +101,9 @@ export default function StudioPage() {
         return newObjects;
     });
     if (selectedObjectId === id) {
-        setSelectedObjectId(null);
+        // Select the first remaining object, or null if none are left
+        const remainingIds = Object.keys(objects).filter(key => key !== id);
+        setSelectedObjectId(remainingIds[0] || null);
     }
   };
 
@@ -125,14 +141,14 @@ export default function StudioPage() {
                                       variant="ghost" 
                                       size="icon" 
                                       className="h-6 w-6 absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/item:opacity-100"
-                                      onClick={() => handleDeleteObject(obj.id)}
+                                      onClick={(e) => { e.stopPropagation(); handleDeleteObject(obj.id); }}
                                     >
                                         <Trash2 className="h-4 w-4 text-muted-foreground" />
                                   </Button>
                               </SidebarMenuItem>
                              ))}
                               <SidebarMenuItem>
-                                  <SidebarMenuButton size="sm">
+                                  <SidebarMenuButton size="sm" disabled>
                                       <Camera className="h-4 w-4" />
                                       <span>Camera</span>
                                   </SidebarMenuButton>
@@ -182,6 +198,17 @@ export default function StudioPage() {
                                         </SelectContent>
                                     </Select>
                                 </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="obj-color">Object Color</Label>
+                                    <Input
+                                        id="obj-color"
+                                        type="color"
+                                        value={selectedObject.color}
+                                        onChange={(e) => handleObjectChange(selectedObject.id, { color: e.target.value })}
+                                        className="w-full h-10 p-1"
+                                    />
+                                </div>
+
 
                                 <Separator />
                                 {/* Position */}
@@ -258,5 +285,3 @@ export default function StudioPage() {
     </>
   );
 }
-
-    

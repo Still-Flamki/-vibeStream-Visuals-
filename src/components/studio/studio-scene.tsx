@@ -110,7 +110,7 @@ export function StudioScene({
     const handleMouseDown = (event: MouseEvent) => {
         if (!currentMount) return;
         
-        // Check if it's a left click
+        // Check if it's a left click for selection
         if (event.button !== 0) return;
         
         const rect = currentMount.getBoundingClientRect();
@@ -124,7 +124,7 @@ export function StudioScene({
 
         if (intersects.length > 0) {
             const firstIntersected = intersects[0].object;
-            if (firstIntersected.userData.id) {
+            if (firstIntersected.userData.id && firstIntersected.userData.id !== selectedObjectId) {
                 onSelectObject(firstIntersected.userData.id);
             }
         } else {
@@ -139,7 +139,6 @@ export function StudioScene({
     
         const newPosition = controlsRef.current.target;
         
-        // Only update if there's a meaningful change to avoid unnecessary re-renders
         const oldPosition = targetMesh.position;
         if (newPosition.distanceTo(oldPosition) > 0.001) {
             onObjectChange(selectedObjectId, { position: { x: newPosition.x, y: newPosition.y, z: newPosition.z } });
@@ -197,7 +196,7 @@ export function StudioScene({
             if(Array.isArray(mesh.material)) {
                 mesh.material.forEach(m => m.dispose());
             } else {
-                mesh.material.dispose();
+                (mesh.material as THREE.Material).dispose();
             }
             objectMeshes.current.delete(id);
         }
@@ -218,8 +217,9 @@ export function StudioScene({
         if (!mesh) {
             const geometry = getGeometry(obj.shape);
             const material = new THREE.MeshStandardMaterial({ 
-              color: new THREE.Color().setHSL(Math.random(), 0.7, 0.6),
-              emissive: 0x000000, 
+              color: new THREE.Color(obj.color),
+              metalness: 0.5,
+              roughness: 0.5,
             });
             mesh = new THREE.Mesh(geometry, material);
             mesh.userData.id = obj.id;
@@ -227,7 +227,9 @@ export function StudioScene({
             scene.add(mesh);
             objectMeshes.current.set(obj.id, mesh);
         }
-
+        
+        // Update properties
+        (mesh.material as THREE.MeshStandardMaterial).color.set(obj.color);
         mesh.position.set(obj.position.x, obj.position.y, obj.position.z);
         mesh.rotation.set(
             THREE.MathUtils.degToRad(obj.rotation.x),
@@ -257,5 +259,3 @@ export function StudioScene({
 
   return <div ref={mountRef} className="w-full h-full cursor-pointer" />;
 }
-
-    
