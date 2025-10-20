@@ -37,7 +37,7 @@ const features = [
 ];
 
 export default function HomePage() {
-  const heroImage = placeholderImages.find(p => p.id === 'hero-visual-alt')!;
+  const heroImage = placeholderImages.find(p => p.id === 'hero-visual')!;
   const featureImage = placeholderImages.find(p => p.id === 'feature-export')!;
 
   return (
