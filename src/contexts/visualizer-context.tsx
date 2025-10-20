@@ -6,6 +6,7 @@ import * as Tone from 'tone';
 import type { Mood, VisualizationType } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import type { VisualizerControls } from '@/components/visualizer/visualizer-props';
+import { type ThreeSceneHandle } from '@/components/visualizer/three-scene';
 
 interface VisualizerContextType {
   loadAudioFile: (file: File) => void;
@@ -24,7 +25,7 @@ interface VisualizerContextType {
   controls: VisualizerControls;
   setControls: React.Dispatch<React.SetStateAction<VisualizerControls>>;
   isRecording: boolean;
-  toggleRecording: (canvas: HTMLCanvasElement) => void;
+  toggleRecording: (threeSceneRef: React.RefObject<ThreeSceneHandle>) => void;
 }
 
 const VisualizerContext = createContext<VisualizerContextType | undefined>(undefined);
@@ -126,10 +127,14 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       
       analyser.current = new Tone.Analyser('fft', 2048);
       streamDestinationRef.current = Tone.context.createMediaStreamDestination();
+      const meter = new Tone.Meter();
+      const destinationWithMeter = new Tone.Channel().connect(meter);
+      destinationWithMeter.connect(Tone.Destination);
+      destinationWithMeter.connect(streamDestinationRef.current);
       
       const newPlayer = new Tone.Player();
       
-      newPlayer.fan(analyser.current, Tone.Destination, streamDestinationRef.current);
+      newPlayer.fan(analyser.current, destinationWithMeter);
       
       await newPlayer.load(url);
       player.current = newPlayer;
@@ -213,9 +218,14 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const startRecording = (canvas: HTMLCanvasElement) => {
-    if (isRecording || !streamDestinationRef.current) return;
+  const startRecording = (threeSceneRef: React.RefObject<ThreeSceneHandle>) => {
+    const canvas = threeSceneRef.current?.getCanvas();
+    if (isRecording || !streamDestinationRef.current || !canvas) return;
+
     try {
+      // Resize for 4K
+      threeSceneRef.current?.resize(3840, 2160);
+
       const videoStream = canvas.captureStream(30); // 30 FPS
       const audioStream = streamDestinationRef.current.stream;
       const combinedStream = new MediaStream([
@@ -223,7 +233,10 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
         ...audioStream.getAudioTracks(),
       ]);
 
-      mediaRecorderRef.current = new MediaRecorder(combinedStream, { mimeType: 'video/webm' });
+      mediaRecorderRef.current = new MediaRecorder(combinedStream, { 
+        mimeType: 'video/webm',
+        videoBitsPerSecond : 16 * 1000 * 1000 // 16 Mbps
+      });
       
       recordedChunksRef.current = [];
       mediaRecorderRef.current.ondataavailable = (event) => {
@@ -233,11 +246,14 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       };
 
       mediaRecorderRef.current.onstop = () => {
-        const blob = new Blob(recordedChunksRef.current, { type: 'video/mp4' });
+        // Resize back to normal
+        threeSceneRef.current?.resize();
+
+        const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `vibestream-visuals-${new Date().toISOString()}.mp4`;
+        a.download = `vibestream-visuals-4k-${new Date().toISOString()}.webm`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -247,10 +263,12 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
       mediaRecorderRef.current.start();
       setIsRecording(true);
-      toast({ title: 'Recording Started', description: 'Click the record button again to stop and download.' });
+      toast({ title: '4K Recording Started', description: 'Click the record button again to stop and download.' });
     } catch (e) {
       console.error("Recording failed to start:", e);
       toast({ variant: 'destructive', title: 'Recording Error', description: 'Could not start recording. Your browser may not support this feature.' });
+      // Resize back if failed
+      threeSceneRef.current?.resize();
     }
   };
 
@@ -258,14 +276,14 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     if (!isRecording || !mediaRecorderRef.current) return;
     mediaRecorderRef.current.stop();
     setIsRecording(false);
-    toast({ title: 'Recording Stopped', description: 'Your download will begin shortly.' });
+    toast({ title: 'Recording Stopped', description: 'Your 4K download will begin shortly.' });
   };
   
-  const toggleRecording = (canvas: HTMLCanvasElement) => {
+  const toggleRecording = (threeSceneRef: React.RefObject<ThreeSceneHandle>) => {
     if (isRecording) {
       stopRecording();
     } else {
-      startRecording(canvas);
+      startRecording(threeSceneRef);
     }
   };
 
@@ -303,3 +321,5 @@ export function useVisualizer(): VisualizerContextType {
   }
   return context;
 }
+
+    

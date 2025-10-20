@@ -84,12 +84,11 @@ export default function ControlsPanel({ threeSceneRef }: ControlsPanelProps) {
   };
   
   const handleMp4Export = () => {
-    const canvas = threeSceneRef.current?.getCanvas();
-    if (!canvas) {
+    if (!threeSceneRef.current?.getCanvas()) {
       toast({ variant: 'destructive', title: 'Error', description: 'Could not find visualization to record.' });
       return;
     }
-    toggleRecording(canvas);
+    toggleRecording(threeSceneRef);
   }
 
   return (
@@ -201,7 +200,7 @@ export default function ControlsPanel({ threeSceneRef }: ControlsPanelProps) {
             <Button variant={isRecording ? "destructive" : "outline"} onClick={handleMp4Export} disabled={!audioSrc}>
               {isRecording 
                 ? <><CircleDot className="mr-2 text-red-500 animate-pulse" /> Stop</> 
-                : <><Video className="mr-2"/> MP4</>}
+                : <><Video className="mr-2"/> MP4 (4K)</>}
             </Button>
             <Button variant="outline" onClick={handleExportGif} disabled={!audioSrc}><Download className="mr-2"/> GIF</Button>
           </div>
@@ -211,3 +210,5 @@ export default function ControlsPanel({ threeSceneRef }: ControlsPanelProps) {
     </Card>
   );
 }
+
+    
