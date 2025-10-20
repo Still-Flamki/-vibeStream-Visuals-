@@ -68,7 +68,7 @@ export default function Visualizer() {
 
   return (
     <div className="flex-grow flex flex-col gap-4 min-h-0">
-      <Card className="flex-grow relative rounded-lg overflow-hidden bg-black/50 shadow-2xl shadow-primary/20 border-primary/20 backdrop-blur-sm">
+      <Card className="flex-grow relative rounded-lg overflow-hidden bg-black/50 shadow-2xl shadow-primary/20">
         <CardContent className="p-0 h-full w-full">
           {audioSrc && (
             <div className="absolute top-4 right-4 z-10 flex gap-2">
@@ -117,7 +117,7 @@ export default function Visualizer() {
       </Card>
       
       {audioSrc && (
-          <Card className="bg-card/80 backdrop-blur-sm border-primary/20">
+          <Card>
             <CardContent className="p-4 flex items-center gap-6">
               <div className="flex-grow grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
                   <div className='space-y-3'>

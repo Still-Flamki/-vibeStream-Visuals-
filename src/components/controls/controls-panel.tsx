@@ -52,7 +52,7 @@ export default function ControlsPanel() {
   const isDisabled = isLoading;
 
   return (
-    <Card className="bg-card/80 backdrop-blur-sm border-primary/20">
+    <Card>
       <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
         <div className="flex-grow">
           <Tabs defaultValue="upload" className="w-full">
