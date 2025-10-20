@@ -18,7 +18,7 @@ export default function StudioPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <Header />
-      <div className="flex-grow flex">
+      <div className="flex-grow">
         <Sidebar>
             <SidebarContent className="p-4">
                 <Accordion type="multiple" defaultValue={['scene', 'properties']} className="w-full">
