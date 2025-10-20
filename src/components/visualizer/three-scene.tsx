@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useRef, useEffect } from 'react';
@@ -32,38 +33,47 @@ export default function ThreeScene({ analyserNode, isPlaying, mood, visualizatio
 
   // Animation and visual logic
   const animate = () => {
-    if (!analyserNode || !isPlaying || !visualRef.current) {
-        requestAnimationFrame(animate);
-        controlsRef.current?.update();
-        if(sceneRef.current && cameraRef.current && rendererRef.current) {
-            rendererRef.current.render(sceneRef.current, cameraRef.current);
-        }
-        return;
-    };
+    requestAnimationFrame(animate);
 
-    const frequencyData = analyserNode.getValue();
+    if (!visualRef.current) {
+      if (sceneRef.current && cameraRef.current && rendererRef.current) {
+        controlsRef.current?.update();
+        rendererRef.current.render(sceneRef.current, cameraRef.current);
+      }
+      return;
+    }
+
     const positionAttribute = (visualRef.current.geometry as THREE.BufferGeometry).getAttribute('position');
     const colorAttribute = (visualRef.current.geometry as THREE.BufferGeometry).getAttribute('color');
     const initialPositions = initialPositionsRef.current!;
-    
-    if (!(frequencyData instanceof Float32Array) || !positionAttribute || !initialPositions) {
-        requestAnimationFrame(animate);
+
+    if (!positionAttribute || !initialPositions) {
+      if (sceneRef.current && cameraRef.current && rendererRef.current) {
         controlsRef.current?.update();
-         if(sceneRef.current && cameraRef.current && rendererRef.current) {
-            rendererRef.current.render(sceneRef.current, cameraRef.current);
-        }
-        return;
+        rendererRef.current.render(sceneRef.current, cameraRef.current);
+      }
+      return;
     }
 
-    const lowerHalf = frequencyData.slice(0, frequencyData.length / 2);
-    const lowerAvg = lowerHalf.reduce((a, b) => a + Math.abs(b), 0) / lowerHalf.length;
-    const upperHalf = frequencyData.slice(frequencyData.length / 2);
-    const upperAvg = upperHalf.reduce((a, b) => a + Math.abs(b), 0) / upperHalf.length;
+    let bassBoost = 0;
+    let trebleBoost = 0;
+    let frequencyData: Float32Array | null = null;
+    
+    if (analyserNode && isPlaying) {
+      const rawFrequencyData = analyserNode.getValue();
+      if (rawFrequencyData instanceof Float32Array) {
+        frequencyData = rawFrequencyData;
+        const lowerHalf = frequencyData.slice(0, frequencyData.length / 2);
+        const lowerAvg = lowerHalf.reduce((a, b) => a + Math.abs(b), 0) / lowerHalf.length;
+        const upperHalf = frequencyData.slice(frequencyData.length / 2);
+        const upperAvg = upperHalf.reduce((a, b) => a + Math.abs(b), 0) / upperHalf.length;
 
-    const bassBoost = isFinite(lowerAvg) ? (Math.abs(lowerAvg) / 100) : 0;
-    const trebleBoost = isFinite(upperAvg) ? (Math.abs(upperAvg) / 100) : 0;
+        bassBoost = isFinite(lowerAvg) ? (Math.abs(lowerAvg) / 100) : 0;
+        trebleBoost = isFinite(upperAvg) ? (Math.abs(upperAvg) / 100) : 0;
+      }
+    }
+
     const time = clockRef.current.getElapsedTime();
-
     const { c1, c2 } = moodColors[mood];
 
     for (let i = 0; i < positionAttribute.count; i++) {
@@ -73,48 +83,50 @@ export default function ThreeScene({ analyserNode, isPlaying, mood, visualizatio
         const iz = initialPositions[i3 + 2];
 
         let x = ix, y = iy, z = iz;
-        const freqIndex = i % frequencyData.length;
-        const freqValue = isFinite(frequencyData[freqIndex]) ? frequencyData[freqIndex] : 0;
+        const freqIndex = i % (frequencyData?.length || 1);
+        const freqValue = (frequencyData && isFinite(frequencyData[freqIndex])) ? frequencyData[freqIndex] : 0;
 
-        switch (visualizationType) {
-            case 'sphere_pulse': {
-                const r = Math.sqrt(ix*ix + iy*iy + iz*iz);
-                const displacement = bassBoost * (freqValue / 10);
-                const newRadius = r + displacement;
-                if (r > 0 && isFinite(newRadius)) {
-                    const ratio = newRadius / r;
-                    x = ix * ratio;
-                    y = iy * ratio;
-                    z = iz * ratio;
+        if (isPlaying) {
+            switch (visualizationType) {
+                case 'sphere_pulse': {
+                    const r = Math.sqrt(ix*ix + iy*iy + iz*iz);
+                    const displacement = bassBoost * (freqValue / 10);
+                    const newRadius = r + displacement;
+                    if (r > 0 && isFinite(newRadius)) {
+                        const ratio = newRadius / r;
+                        x = ix * ratio;
+                        y = iy * ratio;
+                        z = iz * ratio;
+                    }
+                    break;
                 }
-                break;
-            }
-            case 'warp_drive': {
-                const r = Math.sqrt(ix*ix + iy*iy);
-                const angle = Math.atan2(iy, ix);
-                const displacement = bassBoost * 50;
-                x = r * Math.cos(angle + iz * 0.1 * bassBoost);
-                y = r * Math.sin(angle + iz * 0.1 * bassBoost);
-                z = (iz + time * 50 * (1 + bassBoost)) % 200 - 100;
-                break;
-            }
-            case 'cosmic_web': {
-                const r = Math.sqrt(ix*ix + iy*iy + iz*iz);
-                const displacement = freqValue * bassBoost * 0.5;
-                const noise = trebleBoost * 5 * (Math.sin(iy * 0.1 + time) + Math.cos(ix * 0.1 + time));
-                if (r > 0 && isFinite(r + displacement + noise)) {
-                    const ratio = (r + displacement + noise) / r;
-                    x = ix * ratio;
-                    y = iy * ratio;
-                    z = iz * ratio;
+                case 'warp_drive': {
+                    const r = Math.sqrt(ix*ix + iy*iy);
+                    const angle = Math.atan2(iy, ix);
+                    const displacement = bassBoost * 50;
+                    x = r * Math.cos(angle + iz * 0.1 * bassBoost);
+                    y = r * Math.sin(angle + iz * 0.1 * bassBoost);
+                    z = (iz + time * 50 * (1 + bassBoost)) % 200 - 100;
+                    break;
                 }
-                break;
-            }
-            case 'tidal_wave': {
-                const wave = Math.sin(ix * 0.2 + time * 2) * bassBoost * 20;
-                const crest = Math.pow(Math.max(0, Math.sin(ix * 0.1 + time * 3)), 5) * trebleBoost * 30;
-                y = wave + crest + iy * (1 + freqValue * 0.01);
-                break;
+                case 'cosmic_web': {
+                    const r = Math.sqrt(ix*ix + iy*iy + iz*iz);
+                    const displacement = freqValue * bassBoost * 0.5;
+                    const noise = trebleBoost * 5 * (Math.sin(iy * 0.1 + time) + Math.cos(ix * 0.1 + time));
+                    if (r > 0 && isFinite(r + displacement + noise)) {
+                        const ratio = (r + displacement + noise) / r;
+                        x = ix * ratio;
+                        y = iy * ratio;
+                        z = iz * ratio;
+                    }
+                    break;
+                }
+                case 'tidal_wave': {
+                    const wave = Math.sin(ix * 0.2 + time * 2) * bassBoost * 20;
+                    const crest = Math.pow(Math.max(0, Math.sin(ix * 0.1 + time * 3)), 5) * trebleBoost * 30;
+                    y = wave + crest + iy * (1 + freqValue * 0.01);
+                    break;
+                }
             }
         }
 
@@ -144,7 +156,6 @@ export default function ThreeScene({ analyserNode, isPlaying, mood, visualizatio
     if(sceneRef.current && cameraRef.current && rendererRef.current) {
         rendererRef.current.render(sceneRef.current, cameraRef.current);
     }
-    requestAnimationFrame(animate);
   };
   
   // Setup and teardown
