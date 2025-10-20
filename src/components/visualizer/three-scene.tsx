@@ -473,7 +473,7 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
             }
             break;
         }
-        case 'galaxy':
+        case 'galaxy': {
             particleCount = 20000;
             positions = new Float32Array(particleCount * 3);
             const arms = 4;
@@ -490,7 +490,8 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
                 positions[i3+2] = (Math.random() - 0.5) * 5;
             }
             break;
-        case 'sphere_pulse':
+        }
+        case 'sphere_pulse': {
             particleCount = 5000;
             positions = new Float32Array(particleCount * 3);
             for (let i = 0; i < particleCount; i++) {
@@ -503,7 +504,8 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
                 positions[i3 + 2] = radius * Math.cos(phi);
             }
             break;
-        case 'warp_drive':
+        }
+        case 'warp_drive': {
             particleCount = 5000;
             positions = new Float32Array(particleCount * 3);
             for (let i = 0; i < particleCount; i++) {
@@ -515,7 +517,8 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
                 positions[i3 + 2] = (Math.random() - 0.5) * 200;
             }
             break;
-        case 'cosmic_web':
+        }
+        case 'cosmic_web': {
             particleCount = 8000;
             positions = new Float32Array(particleCount * 3);
             for (let i = 0; i < particleCount; i++) {
@@ -525,7 +528,8 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
                 positions[i3 + 2] = (Math.random() - 0.5) * 150;
             }
             break;
-        case 'torus_knot':
+        }
+        case 'torus_knot': {
             particleCount = 10000;
             positions = new Float32Array(particleCount * 3);
             const p = 2, q = 3;
@@ -548,6 +552,7 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
                 positions[i3 + 2] = z + Math.sin(randomAngle2) * randomRadius;
             }
             break;
+        }
          case 'audio_city': {
             const cityGroup = new THREE.Group();
             const citySize = 100;
@@ -705,9 +710,3 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
 
 ThreeScene.displayName = 'ThreeScene';
 export default ThreeScene;
-
-    
-
-    
-
-    

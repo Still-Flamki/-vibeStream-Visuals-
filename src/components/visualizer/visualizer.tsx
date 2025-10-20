@@ -317,7 +317,3 @@ export default function Visualizer() {
     </div>
   );
 }
-
-    
-
-    
