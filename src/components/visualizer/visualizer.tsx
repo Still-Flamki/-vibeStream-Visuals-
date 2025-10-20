@@ -17,6 +17,7 @@ import { Label } from '../ui/label';
 import { Slider } from '../ui/slider';
 import { PhoneFrame } from './phone-frame';
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
+import * as THREE from 'three';
 
 const aspectRatios: { [key: string]: { label: string; value: number, isMobile: boolean } } = {
   '16:9': { label: 'Widescreen (16:9)', value: 16 / 9, isMobile: true },
@@ -94,7 +95,14 @@ export default function Visualizer() {
   const handleRotationSet = (axis: 'x' | 'y' | 'z', degrees: number) => {
     setControls(c => ({
       ...c,
-      rotation: { ...c.rotation, [axis]: THREE.MathUtils.degToRad(degrees) }
+      rotation: { ...c.rotation, direction: 'none', [axis]: THREE.MathUtils.degToRad(degrees) }
+    }));
+  };
+
+  const handleContinuousRotation = (direction: 'left' | 'right' | 'none') => {
+    setControls(c => ({
+      ...c,
+      rotation: { ...c.rotation, direction, x: 0, y: 0, z: 0 }
     }));
   };
 
@@ -115,7 +123,7 @@ export default function Visualizer() {
 
   return (
     <div className="w-full flex-grow flex flex-col gap-4 min-h-0 items-center justify-center">
-       <div className="w-full h-full flex items-center justify-center p-4">
+      <div className="w-full h-full flex items-center justify-center p-4">
         <Card 
           className="relative rounded-lg overflow-hidden bg-black/50 shadow-2xl shadow-primary/20 w-full max-w-7xl max-h-full"
           style={{aspectRatio: audioSrc ? numericAspectRatio : '16 / 9'}}
@@ -228,7 +236,7 @@ export default function Visualizer() {
                         size="sm" 
                         variant="outline"
                         value={controls.rotation.direction}
-                        onValueChange={(value) => setControls(c => ({...c, rotation: {...c.rotation, direction: value as 'left' | 'right' | 'none' || 'none'}}))}
+                        onValueChange={(value) => handleContinuousRotation(value as 'left' | 'right' | 'none' || 'none')}
                         disabled={isDisabled}
                       >
                         <ToggleGroupItem value="left" aria-label="Rotate left"><Undo2/></ToggleGroupItem>
@@ -238,8 +246,8 @@ export default function Visualizer() {
                      <div className='flex gap-2 items-center'>
                       <Label className="text-xs">Set Angle</Label>
                       <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleRotationSet('y', 90)} disabled={isDisabled}><RotateCcw /></Button>
-                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleRotationSet('y', 180)} disabled={isDisabled}><RotateCw /></Button>
-                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleRotationSet('y', 360)} disabled={isDisabled}>360</Button>
+                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleRotationSet('y', -90)} disabled={isDisabled}><RotateCw /></Button>
+                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleRotationSet('y', 180)} disabled={isDisabled}>180</Button>
                     </div>
                   </div>
 
@@ -260,3 +268,5 @@ export default function Visualizer() {
     </div>
   );
 }
+
+    

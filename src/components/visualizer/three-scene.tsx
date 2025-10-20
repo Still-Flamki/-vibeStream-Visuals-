@@ -203,10 +203,11 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
                     visualRef.current.rotation.y -= (0.0005 + bassBoost * 0.001) * controls.rotation.speed;
                   } else if (controls.rotation.direction === 'right') {
                     visualRef.current.rotation.y += (0.0005 + bassBoost * 0.001) * controls.rotation.speed;
+                  } else {
+                    visualRef.current.rotation.x = THREE.MathUtils.lerp(visualRef.current.rotation.x, controls.rotation.x, 0.1);
+                    visualRef.current.rotation.y = THREE.MathUtils.lerp(visualRef.current.rotation.y, controls.rotation.y, 0.1);
+                    visualRef.current.rotation.z = THREE.MathUtils.lerp(visualRef.current.rotation.z, controls.rotation.z, 0.1);
                   }
-                  visualRef.current.rotation.x = THREE.MathUtils.lerp(visualRef.current.rotation.x, controls.rotation.x, 0.1);
-                  visualRef.current.rotation.y = THREE.MathUtils.lerp(visualRef.current.rotation.y, controls.rotation.y, 0.1);
-                  visualRef.current.rotation.z = THREE.MathUtils.lerp(visualRef.current.rotation.z, controls.rotation.z, 0.1);
                 }
             }
         }
@@ -375,3 +376,5 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
 
 ThreeScene.displayName = 'ThreeScene';
 export default ThreeScene;
+
+    
