@@ -48,32 +48,39 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
         const targetWidth = width || mountRef.current.clientWidth;
         const targetHeight = height || mountRef.current.clientHeight;
         
+        rendererRef.current.setSize(targetWidth, targetHeight);
+        
         const currentAspect = latestProps.current.aspectRatio;
         cameraRef.current.aspect = currentAspect;
         cameraRef.current.updateProjectionMatrix();
         
-        rendererRef.current.setSize(targetWidth, targetHeight);
-        
         const containerAspect = targetWidth / targetHeight;
+
+        let scissorWidth, scissorHeight, scissorX, scissorY;
+
         if (containerAspect > currentAspect) {
           // container is wider, use full height
-          rendererRef.current.setScissor(
-            (targetWidth - targetHeight * currentAspect) / 2, 0,
-            targetHeight * currentAspect, targetHeight
-          );
+          scissorHeight = targetHeight;
+          scissorWidth = targetHeight * currentAspect;
+          scissorX = (targetWidth - scissorWidth) / 2;
+          scissorY = 0;
         } else {
           // container is taller, use full width
-          rendererRef.current.setScissor(
-            0, (targetHeight - targetWidth / currentAspect) / 2,
-            targetWidth, targetWidth / currentAspect
-          );
+          scissorWidth = targetWidth;
+          scissorHeight = targetWidth / currentAspect;
+          scissorY = (targetHeight - scissorHeight) / 2;
+          scissorX = 0;
         }
+        
+        rendererRef.current.setScissor(scissorX, scissorY, scissorWidth, scissorHeight);
       }
     },
     setAspectRatio: (aspect: number) => {
-      if (cameraRef.current) {
+      if (cameraRef.current && mountRef.current && rendererRef.current) {
         cameraRef.current.aspect = aspect;
         cameraRef.current.updateProjectionMatrix();
+        const { clientWidth, clientHeight } = mountRef.current;
+        ref.current?.resize(clientWidth, clientHeight);
       }
     }
   }));
@@ -230,32 +237,13 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
     let animationFrameId = requestAnimationFrame(animate);
 
     const handleResize = () => {
-      if (!currentMount || !renderer.current || !camera.current) return;
-      
-      const newWidth = currentMount.clientWidth;
-      const newHeight = currentMount.clientHeight;
-
-      camera.aspect = latestProps.current.aspectRatio;
-      camera.updateProjectionMatrix();
-      renderer.setSize(newWidth, newHeight);
-
-      const containerAspect = newWidth / newHeight;
-      if (containerAspect > camera.aspect) {
-        // container is wider, use full height
-        renderer.setScissor(
-            (newWidth - newHeight * camera.aspect) / 2, 0,
-            newHeight * camera.aspect, newHeight
-        );
-      } else {
-        // container is taller, use full width
-        renderer.setScissor(
-            0, (newHeight - newWidth / camera.aspect) / 2,
-            newWidth, newWidth / camera.aspect
-        );
-      }
+        if (ref.current) {
+            ref.current.resize();
+        }
     };
     window.addEventListener('resize', handleResize);
-    handleResize();
+    // Initial resize after a short delay to ensure layout is stable
+    setTimeout(handleResize, 100);
 
     return () => {
       window.removeEventListener('resize', handleResize);
@@ -279,27 +267,10 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
 
   // Update aspect ratio when prop changes
   useEffect(() => {
-    if (!mountRef.current || !rendererRef.current || !cameraRef.current) return;
-    
-    const newWidth = mountRef.current.clientWidth;
-    const newHeight = mountRef.current.clientHeight;
-
-    cameraRef.current.aspect = aspectRatio;
-    cameraRef.current.updateProjectionMatrix();
-
-    const containerAspect = newWidth / newHeight;
-    if (containerAspect > aspectRatio) {
-      rendererRef.current.setScissor(
-        (newWidth - newHeight * aspectRatio) / 2, 0,
-        newHeight * aspectRatio, newHeight
-      );
-    } else {
-      rendererRef.current.setScissor(
-        0, (newHeight - newWidth / aspectRatio) / 2,
-        newWidth, newWidth / aspectRatio
-      );
+    if (ref.current) {
+        ref.current.setAspectRatio(aspectRatio);
     }
-  }, [aspectRatio]);
+  }, [aspectRatio, ref]);
 
   // Visual type switching
   useEffect(() => {

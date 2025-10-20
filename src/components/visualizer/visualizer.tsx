@@ -42,13 +42,19 @@ export default function Visualizer() {
     setAspectRatio,
   } = useVisualizer();
   const threeSceneRef = useRef<ThreeSceneHandle>(null);
+  const visualizerContainerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     const handleResize = () => {
-      threeSceneRef.current?.resize();
+      if (visualizerContainerRef.current) {
+        const { clientWidth, clientHeight } = visualizerContainerRef.current;
+        threeSceneRef.current?.resize(clientWidth, clientHeight);
+      }
     };
     window.addEventListener('resize', handleResize);
+    // Initial resize
+    handleResize();
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
@@ -86,8 +92,8 @@ export default function Visualizer() {
   const isDisabled = isRecording;
 
   return (
-    <div className="flex-grow flex flex-col gap-4 min-h-0">
-      <Card className="flex-grow relative rounded-lg overflow-hidden bg-black/50 shadow-2xl shadow-primary/20">
+    <div className="w-full h-full flex flex-col gap-4 min-h-0">
+      <Card ref={visualizerContainerRef} className="flex-grow relative rounded-lg overflow-hidden bg-black/50 shadow-2xl shadow-primary/20">
         <CardContent className="p-0 h-full w-full">
           {audioSrc && (
             <div className="absolute top-4 right-4 z-10 flex gap-2">
@@ -142,7 +148,7 @@ export default function Visualizer() {
               <div className="flex-grow grid grid-cols-1 md:grid-cols-4 gap-6 items-center">
                   <div className='space-y-3 md:col-span-1'>
                       <div className="space-y-2">
-                          <h3 className="text-lg font-semibold flex items-center gap-2"><Sparkles className="text-primary"/> Visual Style</h3>
+                          <h3 className="text-sm font-semibold flex items-center gap-2"><Sparkles className="text-primary h-4 w-4"/> Visual Style</h3>
                           <Select onValueChange={(value: VisualizationType) => setVisualizationType(value)} defaultValue={visualizationType} disabled={isDisabled}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select a visualization" />
@@ -156,7 +162,7 @@ export default function Visualizer() {
                           </Select>
                       </div>
                        <div className="space-y-2">
-                          <h3 className="text-lg font-semibold flex items-center gap-2"><Crop className="text-primary"/> Aspect Ratio</h3>
+                          <h3 className="text-sm font-semibold flex items-center gap-2"><Crop className="text-primary h-4 w-4"/> Aspect Ratio</h3>
                           <Select onValueChange={(value: string) => setAspectRatio(aspectRatios[value].value)} defaultValue={Object.keys(aspectRatios).find(key => aspectRatios[key].value === aspectRatio)} disabled={isDisabled}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select an aspect ratio" />
@@ -169,13 +175,13 @@ export default function Visualizer() {
                           </Select>
                       </div>
                   </div>
-                  <div className='space-y-3 md:col-span-1'>
+                  <div className='space-y-3 md:col-span-1 flex items-center justify-center'>
                     <div className="flex items-center gap-2 pt-5">
-                      <span className="text-muted-foreground text-lg">Vibe:</span>
+                      <span className="text-muted-foreground text-sm">Vibe:</span>
                       {isLoading ? (
                           <Loader2 className="animate-spin" />
                       ) : (
-                          <Badge variant="secondary" className="capitalize text-lg px-3 py-1 bg-accent/20 text-accent-foreground border-accent/50">{mood}</Badge>
+                          <Badge variant="secondary" className="capitalize text-sm px-3 py-1 bg-accent/20 text-accent-foreground border-accent/50">{mood}</Badge>
                       )}
                       </div>
                   </div>
