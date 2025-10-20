@@ -3,13 +3,18 @@
 
 import { Sidebar, SidebarContent, SidebarInset, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { Card, CardContent } from '@/components/ui/card';
-import { SlidersHorizontal, Shapes, Clock, Box, Layers, Camera } from 'lucide-react';
+import { SlidersHorizontal, Box, Layers, Camera } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import Header from '@/components/layout/header';
 import Footer from '@/components/layout/footer';
 import { StudioScene } from '@/components/studio/studio-scene';
+import { useState } from 'react';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
 export default function StudioPage() {
+  const [backgroundColor, setBackgroundColor] = useState('#1a1a1a');
+
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <Header />
@@ -49,18 +54,19 @@ export default function StudioPage() {
                             </div>
                         </AccordionTrigger>
                         <AccordionContent>
-                            <p className="text-xs text-muted-foreground p-2">Select an object to see its properties.</p>
-                        </AccordionContent>
-                    </AccordionItem>
-                    <AccordionItem value="timeline">
-                        <AccordionTrigger>
-                            <div className="flex items-center gap-2">
-                                <Clock className="h-4 w-4" />
-                                <span>Timeline</span>
-                            </div>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                           <p className="text-xs text-muted-foreground p-2">Animation timeline controls will appear here.</p>
+                           <div className="p-2 space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="bg-color">Background Color</Label>
+                                    <Input 
+                                        id="bg-color"
+                                        type="color" 
+                                        value={backgroundColor}
+                                        onChange={(e) => setBackgroundColor(e.target.value)}
+                                        className="w-full h-10 p-1"
+                                    />
+                                </div>
+                                <p className="text-xs text-muted-foreground pt-4">More object properties will appear here.</p>
+                           </div>
                         </AccordionContent>
                     </AccordionItem>
                 </Accordion>
@@ -68,7 +74,7 @@ export default function StudioPage() {
         </Sidebar>
         <SidebarInset className="flex-grow flex flex-col p-4 gap-4">
             <main className="flex-grow flex items-center justify-center rounded-lg bg-black/30 border border-border overflow-hidden">
-                <StudioScene />
+                <StudioScene backgroundColor={backgroundColor} />
             </main>
              <Card className="h-48">
                 <CardContent className="p-4 flex items-center justify-center h-full">

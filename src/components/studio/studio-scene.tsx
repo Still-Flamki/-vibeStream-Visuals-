@@ -5,8 +5,13 @@ import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
-export function StudioScene() {
+interface StudioSceneProps {
+  backgroundColor: string;
+}
+
+export function StudioScene({ backgroundColor }: StudioSceneProps) {
   const mountRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -15,7 +20,8 @@ export function StudioScene() {
 
     // Scene
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x1a1a1a);
+    scene.background = new THREE.Color(backgroundColor);
+    sceneRef.current = scene;
 
     // Camera
     const aspect = currentMount.clientWidth / currentMount.clientHeight;
@@ -85,6 +91,12 @@ export function StudioScene() {
       material.dispose();
     };
   }, []);
+
+  useEffect(() => {
+    if (sceneRef.current) {
+      sceneRef.current.background = new THREE.Color(backgroundColor);
+    }
+  }, [backgroundColor]);
 
   return <div ref={mountRef} className="w-full h-full" />;
 }
