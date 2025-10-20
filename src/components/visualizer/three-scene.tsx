@@ -38,7 +38,7 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const orbitControlsRef = useRef<OrbitControls | null>(null);
-  const visualRef = useRef<THREE.Points | THREE.Mesh>();
+  const visualRef = useRef<THREE.Points | THREE.Mesh | THREE.Group>();
   const initialPositionsRef = useRef<Float32Array>();
   const clockRef = useRef(new THREE.Clock());
   const animationFrameIdRef = useRef<number>(0);
@@ -75,7 +75,42 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
     if (!visualRef.current) return;
 
     const { analyserNode, isPlaying, mood, visualizationType, controls, colorMode } = latestProps.current;
-    const geometry = (visualRef.current.geometry as THREE.BufferGeometry);
+    
+    if (visualizationType === 'audio_city' && visualRef.current instanceof THREE.Group) {
+      // Logic for Audio City (Group of Meshes)
+      if (analyserNode && isPlaying) {
+          const frequencyData = analyserNode.getValue();
+          if (frequencyData instanceof Float32Array && frequencyData.length > 0) {
+            visualRef.current.children.forEach((mesh, index) => {
+              const barFreqIndex = index % frequencyData.length;
+              const barRawFreqValue = isFinite(frequencyData[barFreqIndex]) ? frequencyData[barFreqIndex] : -Infinity;
+              const barFreqValue = barRawFreqValue > -100 ? (barRawFreqValue + 100) / 100 : 0; // Normalize dB from -100,0 to 0,1
+              
+              const targetScaleY = Math.max(0.01, barFreqValue * 50 * controls.bassSensitivity);
+              const targetPositionY = targetScaleY / 2;
+
+              mesh.scale.y = THREE.MathUtils.lerp(mesh.scale.y, targetScaleY, 0.2);
+              mesh.position.y = THREE.MathUtils.lerp(mesh.position.y, targetPositionY, 0.2);
+
+              if (mesh instanceof THREE.Mesh && mesh.material instanceof THREE.MeshBasicMaterial) {
+                const hue = (index * 0.05) % 1;
+                mesh.material.color.setHSL(hue, 1, 0.5 + barFreqValue * 0.5);
+              }
+            });
+          }
+      } else {
+        // Smoothly scale down when not playing
+        visualRef.current.children.forEach((mesh) => {
+           mesh.scale.y = THREE.MathUtils.lerp(mesh.scale.y, 0.01, 0.1);
+           mesh.position.y = THREE.MathUtils.lerp(mesh.position.y, 0.01 / 2, 0.1);
+        });
+      }
+      return; // End update for audio city
+    }
+
+
+    // Logic for Particle-based visuals
+    const geometry = (visualRef.current as THREE.Points | THREE.Mesh)?.geometry as THREE.BufferGeometry;
     if (!geometry) return;
     const positionAttribute = geometry.getAttribute('position');
     const colorAttribute = geometry.getAttribute('color');
@@ -199,19 +234,19 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
                     }
                     break;
                 }
-                case 'audio_city': {
-                    const barFreqIndex = Math.floor(i / 4) % (frequencyData?.length || 1);
-                    const barRawFreqValue = (frequencyData && isFinite(frequencyData[barFreqIndex])) ? frequencyData[barFreqIndex] : -Infinity;
-                    const barFreqValue = barRawFreqValue > -100 ? (barRawFreqValue + 100) / 100 : 0;
-                    const height = Math.max(0, barFreqValue * 100 * bassBoost);
+                // case 'audio_city': { This logic is now handled separately for THREE.Group
+                //     const barFreqIndex = Math.floor(i / 4) % (frequencyData?.length || 1);
+                //     const barRawFreqValue = (frequencyData && isFinite(frequencyData[barFreqIndex])) ? frequencyData[barFreqIndex] : -Infinity;
+                //     const barFreqValue = barRawFreqValue > -100 ? (barRawFreqValue + 100) / 100 : 0;
+                //     const height = Math.max(0, barFreqValue * 100 * bassBoost);
                     
-                    if (i % 4 === 1 || i % 4 === 2) {
-                        y = iy + height;
-                    } else {
-                        y = iy;
-                    }
-                    break;
-                }
+                //     if (i % 4 === 1 || i % 4 === 2) {
+                //         y = iy + height;
+                //     } else {
+                //         y = iy;
+                //     }
+                //     break;
+                // }
                  case 'aurora_borealis': {
                     const wave1 = Math.sin(ix * 0.01 + time * 0.5 + iz * 0.005) * bassBoost * 30;
                     const wave2 = Math.cos(ix * 0.005 - time * 0.3 + iz * 0.01) * trebleBoost * 20;
@@ -260,7 +295,7 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
     positionAttribute.needsUpdate = true;
     if (colorAttribute) colorAttribute.needsUpdate = true;
 
-    if (visualRef.current) {
+    if (visualRef.current && !(visualRef.current instanceof THREE.Group)) {
       if (controls.rotation.direction === 'left') {
         visualRef.current.rotation.y -= (0.0005 + bassBoost * 0.001) * controls.rotation.speed;
       } else if (controls.rotation.direction === 'right') {
@@ -336,14 +371,29 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
         currentMount.removeChild(renderer.domElement);
       }
       renderer.dispose();
-      visualRef.current?.geometry.dispose();
-      if (visualRef.current?.material) {
-        if (Array.isArray(visualRef.current.material)) {
-          visualRef.current.material.forEach(m => m.dispose());
+
+      if (visualRef.current) {
+        if (visualRef.current instanceof THREE.Group) {
+            visualRef.current.children.forEach(child => {
+                const mesh = child as THREE.Mesh;
+                mesh.geometry.dispose();
+                if (Array.isArray(mesh.material)) {
+                    mesh.material.forEach(m => m.dispose());
+                } else {
+                    (mesh.material as THREE.Material).dispose();
+                }
+            });
         } else {
-          (visualRef.current.material as THREE.Material).dispose();
+            (visualRef.current as THREE.Points | THREE.Mesh).geometry.dispose();
+            const material = (visualRef.current as THREE.Points | THREE.Mesh).material;
+             if (Array.isArray(material)) {
+                material.forEach(m => m.dispose());
+            } else {
+                material.dispose();
+            }
         }
       }
+
       scene.clear();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -358,23 +408,38 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
 
   // Visual type switching
   useEffect(() => {
-    if (!sceneRef.current) return;
+    if (!sceneRef.current || !cameraRef.current) return;
 
     // Clean up previous visual
     if (visualRef.current) {
         sceneRef.current.remove(visualRef.current);
-        visualRef.current.geometry.dispose();
-         if (visualRef.current?.material) {
+        // Proper disposal
+        if (visualRef.current instanceof THREE.Group) {
+            visualRef.current.children.forEach(child => {
+                const mesh = child as THREE.Mesh;
+                mesh.geometry.dispose();
+                 if (Array.isArray(mesh.material)) {
+                    mesh.material.forEach(m => m.dispose());
+                } else {
+                    (mesh.material as THREE.Material).dispose();
+                }
+            });
+        } else if (visualRef.current.geometry) {
+            visualRef.current.geometry.dispose();
+        }
+
+        if ('material' in visualRef.current && visualRef.current.material) {
             if (Array.isArray(visualRef.current.material)) {
-              visualRef.current.material.forEach(m => m.dispose());
+                visualRef.current.material.forEach(m => m.dispose());
             } else {
-              (visualRef.current.material as THREE.Material).dispose();
+                (visualRef.current.material as THREE.Material).dispose();
             }
         }
+        visualRef.current = undefined;
     }
     
-    let geometry: THREE.BufferGeometry;
-    let newVisual: THREE.Points | THREE.Mesh;
+    let geometry: THREE.BufferGeometry | undefined;
+    let newVisual: THREE.Points | THREE.Mesh | THREE.Group | undefined;
     let particleCount: number;
     let positions: Float32Array;
 
@@ -491,24 +556,31 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
                 positions[i3 + 2] = z + Math.sin(randomAngle2) * randomRadius;
             }
             break;
-         case 'audio_city':
-            const citySize = 50;
-            const barWidth = 4;
-            const barSpacing = 2;
-            const positionsList: number[] = [];
-            for (let i = -citySize; i < citySize; i += barWidth + barSpacing) {
-                for (let j = -citySize; j < citySize; j += barWidth + barSpacing) {
-                    const x = i;
-                    const z = j;
-                    // Define a quad for the top of the bar
-                    positionsList.push(x, 0, z);
-                    positionsList.push(x + barWidth, 0, z);
-                    positionsList.push(x + barWidth, 0, z + barWidth);
-                    positionsList.push(x, 0, z + barWidth);
+         case 'audio_city': {
+            const cityGroup = new THREE.Group();
+            const citySize = 100;
+            const gridSize = 20;
+
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    const barWidth = Math.random() * 3 + 2;
+                    const barDepth = Math.random() * 3 + 2;
+                    const boxGeometry = new THREE.BoxGeometry(barWidth, 1, barDepth);
+                    const boxMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+                    const bar = new THREE.Mesh(boxGeometry, boxMaterial);
+                    
+                    const x = (i / (gridSize -1) - 0.5) * citySize;
+                    const z = (j / (gridSize -1) - 0.5) * citySize;
+
+                    bar.position.set(x, 0.5, z);
+                    bar.scale.y = 0.01; // Start flat
+                    cityGroup.add(bar);
                 }
             }
-            positions = new Float32Array(positionsList);
+            newVisual = cityGroup;
+            cameraRef.current.position.set(0, 80, 120); // Adjust camera for better view
             break;
+        }
         case 'aurora_borealis': {
             const ribbonCount = 10;
             const ribbonLength = 200;
@@ -538,64 +610,82 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
         default:
             const size = 200;
             const segments = 100;
-            positions = new Float32Array(segments * segments * 3);
+            positions = new Float32Array(segments * segments * 3 * 2); // 2 triangles per quad
             let idx = 0;
-             for (let i = 0; i < segments; i++) {
-                for (let j = 0; j < segments; j++) {
-                    const x = (i / segments - 0.5) * size;
-                    const z = (j / segments - 0.5) * size;
-                    positions[idx++] = x;
-                    positions[idx++] = 0; // y
-                    positions[idx++] = z;
+             for (let i = 0; i < segments -1; i++) {
+                for (let j = 0; j < segments -1; j++) {
+                    const x1 = (i / segments - 0.5) * size;
+                    const z1 = (j / segments - 0.5) * size;
+                    const x2 = ((i+1) / segments - 0.5) * size;
+                    const z2 = ((j+1) / segments - 0.5) * size;
+
+                    // Triangle 1
+                    positions[idx++] = x1; positions[idx++] = 0; positions[idx++] = z1;
+                    positions[idx++] = x2; positions[idx++] = 0; positions[idx++] = z1;
+                    positions[idx++] = x1; positions[idx++] = 0; positions[idx++] = z2;
+                    
+                    // Triangle 2
+                    positions[idx++] = x2; positions[idx++] = 0; positions[idx++] = z1;
+                    positions[idx++] = x2; positions[idx++] = 0; positions[idx++] = z2;
+                    positions[idx++] = x1; positions[idx++] = 0; positions[idx++] = z2;
                 }
             }
             break;
     }
     
-    geometry = new THREE.BufferGeometry();
-    initialPositionsRef.current = new Float32Array(positions);
-    geometry.setAttribute('position', new THREE.BufferAttribute(initialPositionsRef.current.slice(), 3));
+    if (visualizationType !== 'audio_city' && positions) {
+        geometry = new THREE.BufferGeometry();
+        initialPositionsRef.current = new Float32Array(positions);
+        geometry.setAttribute('position', new THREE.BufferAttribute(initialPositionsRef.current.slice(), 3));
 
-    const colors = new Float32Array(positions.length);
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    
-    let material: THREE.PointsMaterial | THREE.MeshBasicMaterial;
+        const colors = new Float32Array(positions.length);
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        
+        let material: THREE.Material;
 
-    if (visualizationType === 'audio_city' || visualizationType === 'aurora_borealis') {
-        material = new THREE.MeshBasicMaterial({
-            vertexColors: true,
-            side: THREE.DoubleSide,
-            transparent: true,
-            blending: THREE.AdditiveBlending,
-            opacity: visualizationType === 'aurora_borealis' ? 0.7 : 1.0,
-        });
-        newVisual = new THREE.Mesh(geometry, material);
-    } else {
-        material = new THREE.PointsMaterial({
-            size: controls.particleSize * (visualizationType === 'tidal_wave' ? 1.5 : 1),
-            vertexColors: true,
-            blending: THREE.AdditiveBlending,
-            transparent: true,
-            sizeAttenuation: true,
-        });
-        newVisual = new THREE.Points(geometry, material);
+        if (visualizationType === 'tidal_wave' || visualizationType === 'aurora_borealis') {
+             material = new THREE.MeshBasicMaterial({
+                vertexColors: true,
+                side: THREE.DoubleSide,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                opacity: visualizationType === 'aurora_borealis' ? 0.7 : 1.0,
+            });
+            newVisual = new THREE.Mesh(geometry, material);
+        } else {
+            material = new THREE.PointsMaterial({
+                size: controls.particleSize,
+                vertexColors: true,
+                blending: THREE.AdditiveBlending,
+                transparent: true,
+                sizeAttenuation: true,
+            });
+            newVisual = new THREE.Points(geometry, material);
+        }
     }
 
-    visualRef.current = newVisual;
-    sceneRef.current.add(newVisual);
+
+    if (newVisual) {
+        visualRef.current = newVisual;
+        sceneRef.current.add(newVisual);
+    } else {
+        // Fallback or error handling
+        console.warn(`No visual could be created for type: ${visualizationType}`);
+    }
+
 
   }, [visualizationType, controls.particleSize]);
 
   // Update material based on controls
   useEffect(() => {
-    if (visualRef.current && 'material' in visualRef.current) {
+    if (visualRef.current && 'material' in visualRef.current && visualRef.current.material) {
         const material = (visualRef.current as THREE.Points).material;
         if (material && 'size' in material) {
-            (material as THREE.PointsMaterial).size = controls.particleSize * (visualizationType === 'tidal_wave' ? 1.5 : 1);
-            material.needsUpdate = true;
+            (material as THREE.PointsMaterial).size = controls.particleSize;
+            (material as THREE.PointsMaterial).needsUpdate = true;
         }
     }
-  }, [controls.particleSize, visualizationType]);
+  }, [controls.particleSize]);
   
 
   return <div ref={mountRef} className="w-full h-full" />;
@@ -603,3 +693,5 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
 
 ThreeScene.displayName = 'ThreeScene';
 export default ThreeScene;
+
+    
