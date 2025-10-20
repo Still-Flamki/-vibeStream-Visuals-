@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
@@ -403,9 +404,9 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
                 const x = 16 * Math.pow(Math.sin(t), 3) * 3;
                 const y = (13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t)) * 3;
                 const z = (Math.random() - 0.5) * 10;
-                positions[i3] = x;
-                positions[i3+1] = y;
-                positions[i3+2] = z;
+                positions[i3] = x + (Math.random() - 0.5) * 5;
+                positions[i3+1] = y + (Math.random() - 0.5) * 5;
+                positions[i3+2] = z + (Math.random() - 0.5) * 5;
             }
             break;
         }
@@ -576,3 +577,5 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
 
 ThreeScene.displayName = 'ThreeScene';
 export default ThreeScene;
+
+    
