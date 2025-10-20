@@ -19,7 +19,6 @@ export default function ControlsPanel() {
     isPlaying, 
     mood,
     isLoading,
-    isAiLoading,
     progress,
     seek
   } = useVisualizer();
@@ -124,7 +123,7 @@ export default function ControlsPanel() {
             <h3 className="text-lg font-semibold">Vibe Analysis</h3>
             <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">Current Mood:</span>
-                {isAiLoading ? (
+                {isLoading ? (
                     <Loader2 className="animate-spin" />
                 ) : (
                     <Badge variant="secondary" className="capitalize text-base px-3 py-1 bg-accent/20 text-accent-foreground border-accent">{mood}</Badge>

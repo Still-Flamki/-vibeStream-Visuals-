@@ -2,7 +2,6 @@
 
 import React, { createContext, useContext, useState, useRef, useEffect, useCallback, type ReactNode } from 'react';
 import * as Tone from 'tone';
-import { detectMood } from '@/ai/ai-mood-detection';
 import type { Mood } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
@@ -17,11 +16,12 @@ interface VisualizerContextType {
   isPlaying: boolean;
   mood: Mood;
   isLoading: boolean;
-  isAiLoading: boolean;
   progress: number;
 }
 
 const VisualizerContext = createContext<VisualizerContextType | undefined>(undefined);
+
+const moods: Mood[] = ['happy', 'dark', 'chill', 'energetic'];
 
 export function VisualizerProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
@@ -29,7 +29,6 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [mood, setMood] = useState<Mood>('chill');
   const [isLoading, setIsLoading] = useState(false);
-  const [isAiLoading, setIsAiLoading] = useState(false);
   const [progress, setProgress] = useState(0);
 
   const player = useRef<Tone.Player | null>(null);
@@ -61,25 +60,21 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const handleAudioLoad = useCallback(async (audioDataUri: string) => {
+  const handleAudioLoad = useCallback(async () => {
     try {
       if (player.current) {
         setIsLoading(false);
-        setIsAiLoading(true);
-        const result = await detectMood({ audioDataUri });
-        const newMood = result.mood as Mood; // Ensure mood is of type Mood
-        setMood(newMood);
-        setIsAiLoading(false);
-        toast({ title: "Mood Detected", description: `The vibe is ${newMood}!` });
+        const randomMood = moods[Math.floor(Math.random() * moods.length)];
+        setMood(randomMood);
+        toast({ title: "Mood Detected", description: `The vibe is ${randomMood}!` });
       }
     } catch (error) {
-      console.error("Error analyzing mood:", error);
-      toast({ variant: 'destructive', title: "AI Error", description: "Could not analyze the music's mood." });
-      setIsAiLoading(false);
+      console.error("Error setting mood:", error);
+      toast({ variant: 'destructive', title: "Error", description: "Could not set the music's mood." });
     }
   }, [toast]);
   
-  const loadAudio = useCallback((url: string, file?: File) => {
+  const loadAudio = useCallback((url: string) => {
     if (!player.current) return;
     setIsLoading(true);
     setAudioSrc(url);
@@ -92,20 +87,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
     player.current.load(url)
       .then(async () => {
-        if (file) {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const dataUri = e.target?.result as string;
-            handleAudioLoad(dataUri);
-          };
-          reader.readAsDataURL(file);
-        } else {
-          // For URLs, we can't get the data URI easily due to CORS.
-          // We can just set a mood or try a simpler analysis.
-          setIsLoading(false);
-          setMood('energetic'); // Default mood for URLs
-          toast({ title: "Mood set", description: "Default vibe for remote tracks is energetic." });
-        }
+        handleAudioLoad();
       })
       .catch(err => {
         console.error("Error loading audio:", err);
@@ -116,11 +98,10 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
   const loadAudioFile = (file: File) => {
     const url = URL.createObjectURL(file);
-    loadAudio(url, file);
+    loadAudio(url);
   };
 
   const loadAudioUrl = (url: string) => {
-    // Basic validation. Note: CORS issues are very common with remote URLs.
     if (!url.startsWith('http')) {
         toast({ variant: 'destructive', title: "Invalid URL", description: "Please enter a valid URL." });
         return;
@@ -137,7 +118,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       setIsPlaying(false);
     } else {
       await Tone.start();
-      if (player.current.progress === 1) { // If at the end, restart
+      if (player.current.progress === 1) { 
           player.current.seek(0);
           setProgress(0);
       }
@@ -172,7 +153,6 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     isPlaying,
     mood,
     isLoading,
-    isAiLoading,
     progress,
   };
 
