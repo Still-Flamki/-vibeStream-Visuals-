@@ -26,6 +26,8 @@ interface VisualizerContextType {
   setControls: React.Dispatch<React.SetStateAction<VisualizerControls>>;
   isRecording: boolean;
   toggleRecording: (threeSceneRef: React.RefObject<ThreeSceneHandle>) => void;
+  isRendering: boolean;
+  renderVideo: (threeSceneRef: React.RefObject<ThreeSceneHandle>) => void;
 }
 
 const VisualizerContext = createContext<VisualizerContextType | undefined>(undefined);
@@ -46,6 +48,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     rotationSpeed: 0.5,
   });
   const [isRecording, setIsRecording] = useState(false);
+  const [isRendering, setIsRendering] = useState(false);
 
   const player = useRef<Tone.Player | null>(null);
   const analyser = useRef<Tone.Analyser | null>(null);
@@ -127,29 +130,24 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       
       analyser.current = new Tone.Analyser('fft', 2048);
       streamDestinationRef.current = Tone.context.createMediaStreamDestination();
-      const meter = new Tone.Meter();
-      const destinationWithMeter = new Tone.Channel().connect(meter);
-      destinationWithMeter.connect(Tone.Destination);
-      destinationWithMeter.connect(streamDestinationRef.current);
       
-      const newPlayer = new Tone.Player();
+      // Route audio to both the main destination and the stream destination for recording
+      player.current = new Tone.Player(url, async () => {
+        setAudioSrc(url);
+        setFileName(name || url.split('/').pop() || "Audio Track");
+        setTimeout(() => analyzeAndSetMood(), 500);
+        setIsLoading(false);
+      }).fan(analyser.current, Tone.Destination, streamDestinationRef.current);
       
-      newPlayer.fan(analyser.current, destinationWithMeter);
-      
-      await newPlayer.load(url);
-      player.current = newPlayer;
+      player.current.toDestination();
+      await Tone.loaded();
 
-      setAudioSrc(url);
-      setFileName(name || url.split('/').pop() || "Audio Track");
-      
-      setTimeout(() => analyzeAndSetMood(), 500);
 
     } catch(err) {
       console.error("Error loading audio:", err);
       toast({ variant: 'destructive', title: "Audio Error", description: "Failed to load audio. The file format may be unsupported or the URL may be invalid/protected by CORS." });
       setAudioSrc(null);
       setFileName(null);
-    } finally {
       setIsLoading(false);
     }
   }, [analyzeAndSetMood, toast, cleanup]);
@@ -170,15 +168,17 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   const updateProgress = useCallback(() => {
     if (player.current && player.current.loaded && Tone.Transport.state === 'started') {
       const currentProgress = Tone.Transport.seconds / player.current.buffer.duration;
-      if (isFinite(currentProgress) && currentProgress <= 1) {
+      if (isFinite(currentProgress) && currentProgress < 1) {
         setProgress(currentProgress);
-      } else if (currentProgress > 1) {
+      } else {
+        // This handles both reaching the end and potential inaccuracies
         setProgress(1);
         setIsPlaying(false);
         Tone.Transport.stop();
         if (animationFrameId.current) {
           cancelAnimationFrame(animationFrameId.current);
         }
+        return; // Stop requesting new frames
       }
       animationFrameId.current = requestAnimationFrame(updateProgress);
     }
@@ -196,10 +196,8 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
         cancelAnimationFrame(animationFrameId.current);
       }
     } else {
-       if (player.current.state === 'stopped' || Tone.Transport.state === 'paused') {
-          if (!player.current.synced) {
+       if (player.current.state === 'stopped') {
             player.current.sync().start(0);
-          }
         }
       Tone.Transport.start();
       setIsPlaying(true);
@@ -218,7 +216,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const startRecording = (threeSceneRef: React.RefObject<ThreeSceneHandle>) => {
+  const startRecording = (threeSceneRef: React.RefObject<ThreeSceneHandle>, onStop?: () => void) => {
     const canvas = threeSceneRef.current?.getCanvas();
     if (isRecording || !streamDestinationRef.current || !canvas) return;
 
@@ -234,8 +232,8 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       ]);
 
       mediaRecorderRef.current = new MediaRecorder(combinedStream, { 
-        mimeType: 'video/webm',
-        videoBitsPerSecond : 16 * 1000 * 1000 // 16 Mbps
+        mimeType: 'video/webm;codecs=vp9,opus',
+        videoBitsPerSecond : 25 * 1000 * 1000 // 25 Mbps for 4K
       });
       
       recordedChunksRef.current = [];
@@ -259,16 +257,18 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
         recordedChunksRef.current = [];
+        onStop?.();
       };
 
       mediaRecorderRef.current.start();
       setIsRecording(true);
-      toast({ title: '4K Recording Started', description: 'Click the record button again to stop and download.' });
+      return true;
     } catch (e) {
       console.error("Recording failed to start:", e);
-      toast({ variant: 'destructive', title: 'Recording Error', description: 'Could not start recording. Your browser may not support this feature.' });
+      toast({ variant: 'destructive', title: 'Recording Error', description: 'Could not start recording. Your browser may not support this feature or codec.' });
       // Resize back if failed
       threeSceneRef.current?.resize();
+      return false;
     }
   };
 
@@ -276,16 +276,63 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     if (!isRecording || !mediaRecorderRef.current) return;
     mediaRecorderRef.current.stop();
     setIsRecording(false);
-    toast({ title: 'Recording Stopped', description: 'Your 4K download will begin shortly.' });
   };
   
   const toggleRecording = (threeSceneRef: React.RefObject<ThreeSceneHandle>) => {
     if (isRecording) {
       stopRecording();
+      toast({ title: 'Recording Stopped', description: 'Your 4K download will begin shortly.' });
     } else {
-      startRecording(threeSceneRef);
+      if (startRecording(threeSceneRef)) {
+        toast({ title: '4K Recording Started', description: 'Click the record button again to stop and download.' });
+      }
     }
   };
+
+  const renderVideo = async (threeSceneRef: React.RefObject<ThreeSceneHandle>) => {
+    if (isRendering || !player.current || !player.current.loaded) {
+        toast({ variant: 'destructive', title: 'Not Ready', description: 'Please load an audio file first.' });
+        return;
+    }
+
+    setIsRendering(true);
+    toast({ title: 'Render Started', description: 'The video will be downloaded automatically when finished.' });
+    
+    // Stop any current playback
+    if (Tone.Transport.state === 'started') {
+        Tone.Transport.stop();
+        setIsPlaying(false);
+    }
+
+    // Seek to beginning
+    seek(0);
+    
+    // Start recording with a callback to reset the rendering state
+    const recordingStarted = startRecording(threeSceneRef, () => {
+        setIsRendering(false);
+        toast({ title: 'Render Complete!', description: 'Your 4K video download has started.' });
+    });
+
+    if (!recordingStarted) {
+      setIsRendering(false);
+      return;
+    }
+    
+    // Schedule stopping the recording at the end of the track
+    const duration = player.current.buffer.duration;
+    Tone.Transport.scheduleOnce(() => {
+        stopRecording();
+        // The onStop callback will handle the state change and download
+    }, duration);
+
+    // Start playback
+    await Tone.start();
+    player.current.sync().start(0);
+    Tone.Transport.start();
+    setIsPlaying(true);
+    animationFrameId.current = requestAnimationFrame(updateProgress);
+};
+
 
   const value: VisualizerContextType = {
     loadAudioFile,
@@ -305,6 +352,8 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     setControls,
     isRecording,
     toggleRecording,
+    isRendering,
+    renderVideo,
   };
 
   return (
@@ -321,5 +370,3 @@ export function useVisualizer(): VisualizerContextType {
   }
   return context;
 }
-
-    
