@@ -1,3 +1,20 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero-visual",
+      "description": "Abstract 3D visualization of sound waves in a neon cosmic environment.",
+      "imageUrl": "https://images.unsplash.com/photo-1668361293649-2abf3f7a132c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxzb3VuZCUyMHZpc3VhbGl6YXRpb258ZW58MHx8fHwxNzYwOTU1ODQ4fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "sound visualization",
+      "width": 800,
+      "height": 600
+    },
+    {
+      "id": "feature-export",
+      "description": "A user interface showing video export options for various social media platforms.",
+      "imageUrl": "https://images.unsplash.com/photo-1581287053822-fd7bf4f4bfec?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHx1c2VyJTIwaW50ZXJmYWNlfGVufDB8fHx8MTc2MDg1NDA0MXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "user interface",
+      "width": 800,
+      "height": 600
+    }
+  ]
 }

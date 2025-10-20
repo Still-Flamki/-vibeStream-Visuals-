@@ -1,68 +1,109 @@
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { VibeStreamIcon } from '@/components/icons';
-import { ArrowRight, Bot, Download, Sparkles } from 'lucide-react';
+import { ArrowRight, Bot, Download, Sparkles, Waves, Rocket, Share2 } from 'lucide-react';
 import Link from 'next/link';
 import Header from '@/components/layout/header';
 import Footer from '@/components/layout/footer';
+import Image from 'next/image';
+import { placeholderImages } from '@/lib/placeholder-images';
 
 const features = [
   {
-    icon: <Bot className="h-10 w-10 text-primary" />,
-    title: 'AI Mood Detection',
-    description: 'Our advanced AI analyzes your track\'s energy and harmony to dynamically match the visuals to the vibe.',
+    icon: <Waves className="h-8 w-8 text-primary" />,
+    title: 'Dynamic, Audio-Reactive Visuals',
+    description: 'Watch as our advanced algorithms translate every beat, harmony, and rhythm into stunning, real-time 3D motion graphics.',
   },
   {
-    icon: <Sparkles className="h-10 w-10 text-primary" />,
-    title: 'Stunning Visual Styles',
-    description: 'Choose from a curated library of visual themes, from cosmic nebulae to synthwave grids, all reacting in real-time to your sound.',
+    icon: <Bot className="h-8 w-8 text-primary" />,
+    title: 'AI-Powered Mood Detection',
+    description: 'Our AI analyzes the energy and emotional tone of your track to automatically select colors and effects that match the vibe.',
   },
   {
-    icon: <Download className="h-10 w-10 text-primary" />,
+    icon: <Rocket className="h-8 w-8 text-primary" />,
+    title: 'Multiple Visual Styles',
+    description: 'Choose from a curated library of visual themes—from cosmic nebulae to synthwave grids—to find the perfect look for your sound.',
+  },
+    {
+    icon: <Share2 className="h-8 w-8 text-primary" />,
     title: 'High-Quality Exports',
-    description: 'Record and download your visual masterpiece in up to 4K resolution, perfect for sharing on any social media platform.',
+    description: 'Record your audiovisual masterpiece in multiple aspect ratios and up to 4K resolution, ready for any social media platform.',
   },
 ];
 
 export default function HomePage() {
+  const heroImage = placeholderImages[0];
+  const featureImage = placeholderImages[1];
+
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <Header />
       <main className="flex-grow">
         {/* Hero Section */}
-        <section className="container mx-auto flex flex-col items-center justify-center text-center py-20 md:py-32">
-          <VibeStreamIcon className="h-24 w-24 text-primary mb-4" />
-          <h1 className="text-4xl md:text-6xl font-bold font-headline tracking-tight">
-            See Your Sound.
-          </h1>
-          <p className="mt-4 max-w-2xl text-lg md:text-xl text-muted-foreground">
-            Turn any audio into a mesmerizing, 3D interactive visual experience. Create, customize, and share your unique audiovisual art.
-          </p>
-          <div className="mt-8">
-            <Button asChild size="lg" className="text-lg py-6 px-8">
-              <Link href="/visualizer">
-                Launch Visualizer <ArrowRight className="ml-2" />
-              </Link>
-            </Button>
+        <section className="container mx-auto grid grid-cols-1 md:grid-cols-2 items-center gap-12 py-20 md:py-32">
+          <div className="flex flex-col items-start text-left">
+            <VibeStreamIcon className="h-24 w-24 text-primary mb-6" />
+            <h1 className="text-4xl md:text-6xl font-bold font-headline tracking-tight">
+              See Your Sound. Feel the Flow.
+            </h1>
+            <p className="mt-6 max-w-xl text-lg md:text-xl text-muted-foreground">
+              VibeStream turns any audio into a mesmerizing, 3D interactive visual experience. Create, customize, and share your unique audiovisual art with the world.
+            </p>
+            <div className="mt-10">
+              <Button asChild size="lg" className="text-lg py-7 px-10">
+                <Link href="/visualizer">
+                  Launch Visualizer <ArrowRight className="ml-2" />
+                </Link>
+              </Button>
+            </div>
+          </div>
+          <div className="relative aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl shadow-primary/20 border border-primary/20">
+              <Image 
+                src={heroImage.imageUrl}
+                alt={heroImage.description}
+                fill
+                className="object-cover"
+                data-ai-hint={heroImage.imageHint}
+              />
           </div>
         </section>
 
         {/* Features Section */}
-        <section className="container mx-auto py-16 md:py-24">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
-              <Card key={index} className="text-center">
-                <CardHeader className="items-center">
-                  {feature.icon}
-                  <CardTitle className="mt-4 font-headline">{feature.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">{feature.description}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+        <section className="bg-secondary/50 py-24">
+            <div className="container mx-auto">
+                <div className="text-center mb-16">
+                    <h2 className="text-4xl font-bold font-headline">A New Dimension of Audio</h2>
+                    <p className="text-muted-foreground mt-4 max-w-2xl mx-auto">VibeStream Visuals isn't just a player; it's an instrument. Explore features designed to bring your music to life.</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-16">
+                    {features.map((feature, index) => (
+                    <div key={index} className="flex items-start gap-6">
+                        <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
+                            {feature.icon}
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-bold font-headline">{feature.title}</h3>
+                            <p className="text-muted-foreground mt-2">{feature.description}</p>
+                        </div>
+                    </div>
+                    ))}
+                </div>
+            </div>
+        </section>
+
+        {/* CTA Section */}
+        <section className="container mx-auto text-center py-24">
+             <h2 className="text-4xl font-bold font-headline">Ready to Create?</h2>
+             <p className="mt-4 max-w-xl mx-auto text-lg text-muted-foreground">
+                Your next masterpiece is just a click away. Launch the visualizer and start your audiovisual journey.
+             </p>
+             <div className="mt-8">
+                <Button asChild size="lg" className="text-lg py-6 px-8">
+                <Link href="/visualizer">
+                    Start Visualizing <ArrowRight className="ml-2" />
+                </Link>
+                </Button>
+            </div>
         </section>
       </main>
       <Footer />
