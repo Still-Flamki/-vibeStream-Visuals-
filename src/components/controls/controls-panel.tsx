@@ -10,7 +10,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Slider } from '@/components/ui/slider';
 import { Upload, Link, Play, Pause, Loader2, Music } from 'lucide-react';
 import { ScrollArea } from '../ui/scroll-area';
-import { Label } from '../ui/label';
 
 export default function ControlsPanel() {
   const { 
@@ -22,7 +21,6 @@ export default function ControlsPanel() {
     isLoading,
     progress,
     seek,
-    isRecording,
   } = useVisualizer();
   const { toast } = useToast();
 
@@ -52,7 +50,7 @@ export default function ControlsPanel() {
     seek(value[0] / 100);
   };
   
-  const isDisabled = isRecording || isLoading;
+  const isDisabled = isLoading;
 
   return (
     <Card className="h-full flex flex-col bg-card/80 backdrop-blur-sm border-primary/20">
@@ -110,7 +108,7 @@ export default function ControlsPanel() {
                   <Button onClick={togglePlay} size="icon" className="rounded-full w-14 h-14" disabled={isDisabled || !fileName}>
                     {isPlaying ? <Pause size={24} /> : <Play size={24} className="ml-1" />}
                   </Button>
-                  <div className="w-full flex flex-col gap-2">
+                  <div className="w-full flex flex-col justify-center gap-2">
                     <Slider value={[progress * 100]} onValueChange={handleSeek} disabled={isDisabled || !fileName}/>
                   </div>
                 </div>
