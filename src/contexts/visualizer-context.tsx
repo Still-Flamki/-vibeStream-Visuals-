@@ -67,13 +67,13 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
     try {
       const buffer = player.current.buffer;
-      // CORRECT FIX: Hardcode the number of channels to a safe value like 2 (stereo).
-      const offlineContext = new Tone.OfflineContext(buffer.duration, Tone.context.sampleRate, 2);
-      const offlinePlayer = new Tone.Player(buffer).connect(offlineContext.destination);
+      // This is a robust, offline way to get FFT data without crashing.
+      const offlineContext = new Tone.OfflineContext(buffer.duration, buffer.sampleRate, 2);
+      const source = new Tone.BufferSource(buffer).connect(offlineContext.destination);
       const fft = new Tone.FFT({ size: 2048, context: offlineContext.rawContext as any });
-      offlinePlayer.connect(fft);
+      source.connect(fft);
       
-      offlinePlayer.start();
+      source.start(0);
       await offlineContext.render();
       
       const frequencyData = fft.getValue();
@@ -101,9 +101,10 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
         setMood(newMood);
       }
       fft.dispose();
-      offlinePlayer.dispose();
+      source.dispose();
     } catch (error) {
       console.error("Error analyzing mood:", error);
+      // Fallback to random mood if analysis fails
       const moods: Mood[] = ['happy', 'dark', 'chill', 'energetic'];
       setMood(moods[Math.floor(Math.random() * moods.length)]);
     }
@@ -111,7 +112,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
   const loadAudio = useCallback(async (url: string, name?: string) => {
     setIsLoading(true);
-    cleanup(); // Clean up previous instances before loading
+    cleanup();
     
     try {
       await Tone.start();
@@ -161,7 +162,9 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
         setProgress(1);
         setIsPlaying(false);
         Tone.Transport.stop();
-        cancelAnimationFrame(animationFrameId.current);
+        if (animationFrameId.current) {
+          cancelAnimationFrame(animationFrameId.current);
+        }
       }
       animationFrameId.current = requestAnimationFrame(updateProgress);
     }
@@ -175,9 +178,10 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     if (Tone.Transport.state === 'started') {
       Tone.Transport.pause();
       setIsPlaying(false);
-      cancelAnimationFrame(animationFrameId.current);
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+      }
     } else {
-      // This syncs the player to the transport, which is crucial
       if (!player.current.synced) {
         player.current.sync().start(0);
       }
