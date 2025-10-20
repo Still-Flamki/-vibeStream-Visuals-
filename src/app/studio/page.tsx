@@ -6,79 +6,32 @@ import { Card, CardContent } from '@/components/ui/card';
 import { SlidersHorizontal, Box, Layers, Camera, Move3d, Rotate3d, Scale3d, PlusCircle, Trash2 } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { StudioScene } from '@/components/studio/studio-scene';
-import { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import * as THREE from 'three';
+import { useStudio, type SceneObject, type ObjectShape } from '@/contexts/studio-context';
+import { useState } from 'react';
 
-type Vector3 = {
-    x: number;
-    y: number;
-    z: number;
-};
-
-export type ObjectShape = 'cube' | 'sphere' | 'cone' | 'torus';
-
-export type SceneObject = {
-    id: string;
-    name: string;
-    shape: ObjectShape;
-    position: Vector3;
-    rotation: Vector3;
-    scale: Vector3;
-    color: string;
-};
-
-let objectCount = 1;
-
-const createNewObject = (): SceneObject => {
-    objectCount++;
-    const newId = `object-${objectCount}`;
-    const randomColor = new THREE.Color().setHSL(Math.random(), 0.7, 0.6).getHexString();
-
-    return {
-        id: newId,
-        name: `Object ${objectCount}`,
-        shape: 'cube',
-        position: { x: (Math.random() - 0.5) * 10, y: 0.5, z: (Math.random() - 0.5) * 10 },
-        rotation: { x: 0, y: 0, z: 0 },
-        scale: { x: 1, y: 1, z: 1 },
-        color: `#${randomColor}`,
-    };
-};
 
 export default function StudioPage() {
-  const [backgroundColor, setBackgroundColor] = useState('#1a1a1a');
-
-  const [objects, setObjects] = useState<Record<string, SceneObject>>(() => {
-    const defaultId = 'default-cube';
-    const defaultColor = new THREE.Color(0x9b59b6).getHexString();
-    return {
-        [defaultId]: {
-            id: defaultId,
-            name: 'Default Cube',
-            shape: 'cube',
-            position: { x: 0, y: 0.5, z: 0 },
-            rotation: { x: 0, y: 0, z: 0 },
-            scale: { x: 1, y: 1, z: 1 },
-            color: `#${defaultColor}`
-        }
-    };
-  });
-
-  const [selectedObjectId, setSelectedObjectId] = useState<string | null>('default-cube');
+  const {
+    objects,
+    backgroundColor,
+    setBackgroundColor,
+    addObject,
+    updateObject,
+    removeObject,
+  } = useStudio();
   
+  const [selectedObjectId, setSelectedObjectId] = useState<string | null>(Object.keys(objects)[0] || null);
+
   const selectedObject = selectedObjectId ? objects[selectedObjectId] : null;
 
   const handleObjectChange = (id: string, newProps: Partial<SceneObject>) => {
-    setObjects(prev => ({
-        ...prev,
-        [id]: { ...prev[id], ...newProps }
-    }));
+    updateObject(id, newProps);
   };
 
   const handleSliderChange = (axis: 'x' | 'y' | 'z', value: number, property: 'position' | 'rotation' | 'scale') => {
@@ -87,25 +40,21 @@ export default function StudioPage() {
           handleObjectChange(selectedObject.id, { [property]: newVector });
       }
   };
-
-  const handleAddObject = () => {
-    const newObject = createNewObject();
-    setObjects(prev => ({ ...prev, [newObject.id]: newObject }));
-    setSelectedObjectId(newObject.id);
-  };
   
-  const handleDeleteObject = (id: string) => {
-    setObjects(prev => {
-        const newObjects = { ...prev };
-        delete newObjects[id];
-        return newObjects;
-    });
+  const handleDeleteObject = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    removeObject(id);
     if (selectedObjectId === id) {
         // Select the first remaining object, or null if none are left
         const remainingIds = Object.keys(objects).filter(key => key !== id);
         setSelectedObjectId(remainingIds[0] || null);
     }
   };
+
+  const handleAddObjectClick = () => {
+    const newObject = addObject();
+    setSelectedObjectId(newObject.id);
+  }
 
   return (
     <>
@@ -121,7 +70,7 @@ export default function StudioPage() {
                       </AccordionTrigger>
                       <AccordionContent>
                         <div className="px-2 pb-2">
-                           <Button variant="outline" size="sm" className="w-full" onClick={handleAddObject}>
+                           <Button variant="outline" size="sm" className="w-full" onClick={handleAddObjectClick}>
                               <PlusCircle className="mr-2 h-4 w-4" />
                               Add Object
                            </Button>
@@ -141,7 +90,7 @@ export default function StudioPage() {
                                       variant="ghost" 
                                       size="icon" 
                                       className="h-6 w-6 absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/item:opacity-100"
-                                      onClick={(e) => { e.stopPropagation(); handleDeleteObject(obj.id); }}
+                                      onClick={(e) => handleDeleteObject(e, obj.id)}
                                     >
                                         <Trash2 className="h-4 w-4 text-muted-foreground" />
                                   </Button>
@@ -269,7 +218,6 @@ export default function StudioPage() {
       <SidebarInset>
           <div className="flex-grow flex items-center justify-center rounded-lg bg-black/30 border border-border overflow-hidden m-4">
               <StudioScene 
-                backgroundColor={backgroundColor}
                 objects={Object.values(objects)}
                 selectedObjectId={selectedObjectId}
                 onSelectObject={setSelectedObjectId}

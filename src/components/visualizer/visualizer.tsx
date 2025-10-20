@@ -139,6 +139,10 @@ export default function Visualizer() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectGroup>
+                              <SelectLabel>Custom</SelectLabel>
+                              <SelectItem value="studio_scene">Studio Scene</SelectItem>
+                            </SelectGroup>
+                            <SelectGroup>
                               <SelectLabel>Objects</SelectLabel>
                               <SelectItem value="audio_sword">Audio Sword</SelectItem>
                             </SelectGroup>
@@ -321,5 +325,3 @@ export default function Visualizer() {
     </div>
   );
 }
-
-    

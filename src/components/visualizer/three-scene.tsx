@@ -1,6 +1,4 @@
 
-
-
 "use client";
 
 import React, { useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
@@ -8,6 +6,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { Mood, VisualizationType } from '@/types';
 import type { VisualizerControls, ThreeSceneProps } from './visualizer-props';
+import { useStudio } from '@/contexts/studio-context';
 
 
 const moodColors: Record<Mood, { c1: THREE.Color; c2: THREE.Color }> = {
@@ -33,22 +32,32 @@ export interface ThreeSceneHandle {
   setAspectRatio: (aspect: number) => void;
 }
 
+const getGeometry = (shape: 'cube' | 'sphere' | 'cone' | 'torus'): THREE.BufferGeometry => {
+    switch (shape) {
+        case 'sphere': return new THREE.SphereGeometry(0.7, 32, 16);
+        case 'cone': return new THREE.ConeGeometry(0.7, 1.5, 32);
+        case 'torus': return new THREE.TorusGeometry(0.6, 0.2, 16, 100);
+        case 'cube': default: return new THREE.BoxGeometry(1, 1, 1);
+    }
+}
+
 const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode, isPlaying, mood, visualizationType, controls, aspectRatio, colorMode, customColor }, ref) => {
+  const { objects: studioObjects, backgroundColor: studioBackgroundColor } = useStudio();
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const orbitControlsRef = useRef<OrbitControls | null>(null);
-  const visualRef = useRef<THREE.Points | THREE.Mesh | THREE.Group>();
+  const visualRef = useRef<THREE.Points | THREE.Mesh | THREE.Group | Map<string, THREE.Mesh>>();
   const initialPositionsRef = useRef<Float32Array>();
   const clockRef = useRef(new THREE.Clock());
   const animationFrameIdRef = useRef<number>(0);
 
   // Store a mutable reference to the props that the animation loop can access
-  const latestProps = useRef({ analyserNode, isPlaying, mood, visualizationType, controls, aspectRatio, colorMode, customColor });
+  const latestProps = useRef({ analyserNode, isPlaying, mood, visualizationType, controls, aspectRatio, colorMode, customColor, studioObjects, studioBackgroundColor });
   useEffect(() => {
-    latestProps.current = { analyserNode, isPlaying, mood, visualizationType, controls, aspectRatio, colorMode, customColor };
-  }, [analyserNode, isPlaying, mood, visualizationType, controls, aspectRatio, colorMode, customColor]);
+    latestProps.current = { analyserNode, isPlaying, mood, visualizationType, controls, aspectRatio, colorMode, customColor, studioObjects, studioBackgroundColor };
+  }, [analyserNode, isPlaying, mood, visualizationType, controls, aspectRatio, colorMode, customColor, studioObjects, studioBackgroundColor]);
 
 
   useImperativeHandle(ref, () => ({
@@ -77,6 +86,45 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
 
     const { analyserNode, isPlaying, mood, visualizationType, controls, colorMode } = latestProps.current;
     
+    let bassBoost = 0;
+    let trebleBoost = 0;
+    let frequencyData: Float32Array | null = null;
+    
+    if (analyserNode && isPlaying) {
+        const rawFrequencyData = analyserNode.getValue();
+        if (rawFrequencyData instanceof Float32Array && rawFrequencyData.length > 0) {
+            frequencyData = rawFrequencyData;
+            const lowerHalf = frequencyData.slice(0, Math.floor(frequencyData.length / 4));
+            const upperHalf = frequencyData.slice(Math.floor(frequencyData.length / 2));
+            
+            if (lowerHalf.length > 0) {
+                const lowerAvg = lowerHalf.reduce((a, b) => a + Math.abs(b), 0) / lowerHalf.length;
+                bassBoost = isFinite(lowerAvg) ? (Math.abs(lowerAvg) / 100) * controls.bassSensitivity : 0;
+            }
+            if(upperHalf.length > 0) {
+                const upperAvg = upperHalf.reduce((a, b) => a + Math.abs(b), 0) / upperHalf.length;
+                trebleBoost = isFinite(upperAvg) ? (Math.abs(upperAvg) / 100) * controls.trebleSensitivity : 0;
+            }
+        }
+    }
+    
+    bassBoost = (isFinite(bassBoost) ? bassBoost : 0) * controls.bounceIntensity;
+    trebleBoost = (isFinite(trebleBoost) ? trebleBoost : 0) * controls.bounceIntensity;
+
+    if (visualizationType === 'studio_scene' && visualRef.current instanceof Map) {
+      const scaleMultiplier = 1 + bassBoost * 0.5;
+      visualRef.current.forEach((mesh, id) => {
+        const baseScale = latestProps.current.studioObjects[id]?.scale || {x:1, y:1, z:1};
+        mesh.scale.set(
+            THREE.MathUtils.lerp(mesh.scale.x, baseScale.x * scaleMultiplier, 0.2),
+            THREE.MathUtils.lerp(mesh.scale.y, baseScale.y * scaleMultiplier, 0.2),
+            THREE.MathUtils.lerp(mesh.scale.z, baseScale.z * scaleMultiplier, 0.2)
+        );
+      });
+      return;
+    }
+
+
     if (visualizationType === 'audio_sword' && visualRef.current instanceof THREE.Group) {
       if(analyserNode && isPlaying) {
         const rawFrequencyData = analyserNode.getValue();
@@ -146,31 +194,7 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
 
     if (!positionAttribute || !initialPositions) return;
 
-    let bassBoost = 0;
-    let trebleBoost = 0;
-    let frequencyData: Float32Array | null = null;
     
-    if (analyserNode && isPlaying) {
-        const rawFrequencyData = analyserNode.getValue();
-        if (rawFrequencyData instanceof Float32Array && rawFrequencyData.length > 0) {
-            frequencyData = rawFrequencyData;
-            const lowerHalf = frequencyData.slice(0, Math.floor(frequencyData.length / 4));
-            const upperHalf = frequencyData.slice(Math.floor(frequencyData.length / 2));
-            
-            if (lowerHalf.length > 0) {
-                const lowerAvg = lowerHalf.reduce((a, b) => a + Math.abs(b), 0) / lowerHalf.length;
-                bassBoost = isFinite(lowerAvg) ? (Math.abs(lowerAvg) / 100) * controls.bassSensitivity : 0;
-            }
-            if(upperHalf.length > 0) {
-                const upperAvg = upperHalf.reduce((a, b) => a + Math.abs(b), 0) / upperHalf.length;
-                trebleBoost = isFinite(upperAvg) ? (Math.abs(upperAvg) / 100) * controls.trebleSensitivity : 0;
-            }
-        }
-    }
-    
-    bassBoost = (isFinite(bassBoost) ? bassBoost : 0) * controls.bounceIntensity;
-    trebleBoost = (isFinite(trebleBoost) ? trebleBoost : 0) * controls.bounceIntensity;
-
     const time = clockRef.current.getElapsedTime();
     
     const { c1, c2 } = moodColors[mood];
@@ -318,7 +342,7 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
     positionAttribute.needsUpdate = true;
     if (colorAttribute) colorAttribute.needsUpdate = true;
 
-    if (visualRef.current && !(visualRef.current instanceof THREE.Group)) {
+    if (visualRef.current && !(visualRef.current instanceof THREE.Group || visualRef.current instanceof Map)) {
       if (controls.rotation.direction === 'left') {
         visualRef.current.rotation.y -= (0.0005 + bassBoost * 0.001) * controls.rotation.speed;
       } else if (controls.rotation.direction === 'right') {
@@ -413,6 +437,11 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
                     (mesh.material as THREE.Material).dispose();
                 }
             });
+        } else if (visualRef.current instanceof Map) {
+            visualRef.current.forEach(mesh => {
+                mesh.geometry.dispose();
+                (mesh.material as THREE.Material).dispose();
+            });
         } else {
             (visualRef.current as THREE.Points | THREE.Mesh).geometry.dispose();
             const material = (visualRef.current as THREE.Points | THREE.Mesh).material;
@@ -439,7 +468,8 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
   // Visual type switching
   useEffect(() => {
     if (!sceneRef.current || !cameraRef.current || !orbitControlsRef.current) return;
-
+    const { studioObjects, studioBackgroundColor } = latestProps.current;
+    
     // Reset camera and controls for specific views
     cameraRef.current.position.set(0, 0, 100);
     orbitControlsRef.current.minDistance = 5;
@@ -448,38 +478,79 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
 
     // Clean up previous visual
     if (visualRef.current) {
-        sceneRef.current.remove(visualRef.current);
-        // Proper disposal
-        if (visualRef.current instanceof THREE.Group) {
-            visualRef.current.children.forEach(child => {
-                const mesh = child as THREE.Mesh;
+        if (visualRef.current instanceof Map) {
+            visualRef.current.forEach(mesh => {
+                sceneRef.current?.remove(mesh);
                 mesh.geometry.dispose();
-                 if (Array.isArray(mesh.material)) {
+                if(Array.isArray(mesh.material)) {
                     mesh.material.forEach(m => m.dispose());
                 } else {
                     (mesh.material as THREE.Material).dispose();
                 }
             });
-        } else if (visualRef.current.geometry) {
-            visualRef.current.geometry.dispose();
-        }
+        } else {
+            sceneRef.current.remove(visualRef.current as THREE.Object3D);
+             if (visualRef.current instanceof THREE.Group) {
+                visualRef.current.children.forEach(child => {
+                    const mesh = child as THREE.Mesh;
+                    mesh.geometry.dispose();
+                     if (Array.isArray(mesh.material)) {
+                        mesh.material.forEach(m => m.dispose());
+                    } else {
+                        (mesh.material as THREE.Material).dispose();
+                    }
+                });
+            } else if ((visualRef.current as any).geometry) {
+                (visualRef.current as any).geometry.dispose();
+            }
 
-        if ('material' in visualRef.current && visualRef.current.material) {
-            if (Array.isArray(visualRef.current.material)) {
-                visualRef.current.material.forEach(m => m.dispose());
-            } else {
-                (visualRef.current.material as THREE.Material).dispose();
+            if ('material' in visualRef.current && (visualRef.current as any).material) {
+                if (Array.isArray((visualRef.current as any).material)) {
+                    (visualRef.current as any).material.forEach((m: THREE.Material) => m.dispose());
+                } else {
+                    ((visualRef.current as any).material as THREE.Material).dispose();
+                }
             }
         }
         visualRef.current = undefined;
     }
     
     let geometry: THREE.BufferGeometry | undefined;
-    let newVisual: THREE.Points | THREE.Mesh | THREE.Group | undefined;
+    let newVisual: THREE.Points | THREE.Mesh | THREE.Group | Map<string, THREE.Mesh> | undefined;
     let particleCount: number;
     let positions: Float32Array;
 
     switch (visualizationType) {
+        case 'studio_scene': {
+            const objectMeshes = new Map<string, THREE.Mesh>();
+            sceneRef.current.background = new THREE.Color(studioBackgroundColor);
+            const gridHelper = new THREE.GridHelper(20, 20, 0x555555, 0x555555);
+            sceneRef.current.add(gridHelper);
+
+            Object.values(studioObjects).forEach(obj => {
+                const geometry = getGeometry(obj.shape);
+                const material = new THREE.MeshStandardMaterial({
+                    color: obj.color,
+                    metalness: 0.5,
+                    roughness: 0.5,
+                });
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.position.set(obj.position.x, obj.position.y, obj.position.z);
+                mesh.rotation.set(
+                    THREE.MathUtils.degToRad(obj.rotation.x),
+                    THREE.MathUtils.degToRad(obj.rotation.y),
+                    THREE.MathUtils.degToRad(obj.rotation.z)
+                );
+                mesh.scale.set(obj.scale.x, obj.scale.y, obj.scale.z);
+                
+                objectMeshes.set(obj.id, mesh);
+                sceneRef.current?.add(mesh);
+            });
+            newVisual = objectMeshes;
+            cameraRef.current.position.set(5, 5, 8);
+            orbitControlsRef.current.target.set(0, 1, 0);
+            break;
+        }
         case 'audio_sword': {
             const sword = new THREE.Group();
 
@@ -730,7 +801,7 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
             break;
     }
     
-    if ((visualizationType !== 'audio_city' && visualizationType !== 'audio_sword') && positions) {
+    if ((visualizationType !== 'audio_city' && visualizationType !== 'audio_sword' && visualizationType !== 'studio_scene') && positions) {
         geometry = new THREE.BufferGeometry();
         initialPositionsRef.current = new Float32Array(positions);
         geometry.setAttribute('position', new THREE.BufferAttribute(initialPositionsRef.current.slice(), 3));
@@ -764,18 +835,20 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
 
     if (newVisual) {
         visualRef.current = newVisual;
-        sceneRef.current.add(newVisual);
+        if (!(newVisual instanceof Map)) {
+          sceneRef.current.add(newVisual as THREE.Object3D);
+        }
     } else {
         // Fallback or error handling
         console.warn(`No visual could be created for type: ${visualizationType}`);
     }
 
 
-  }, [visualizationType, controls.particleSize, mood]);
+  }, [visualizationType, controls.particleSize, mood, latestProps]);
 
   // Update material based on controls
   useEffect(() => {
-    if (visualRef.current && 'material' in visualRef.current && visualRef.current.material) {
+    if (visualRef.current && 'material' in visualRef.current && (visualRef.current as any).material) {
         if (visualRef.current instanceof THREE.Points) {
             const material = visualRef.current.material as THREE.PointsMaterial;
             if (material && 'size' in material) {
@@ -792,5 +865,3 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
 
 ThreeScene.displayName = 'ThreeScene';
 export default ThreeScene;
-
-    

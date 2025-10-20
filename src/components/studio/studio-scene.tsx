@@ -4,12 +4,11 @@
 import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import type { SceneObject, ObjectShape } from '@/app/studio/page';
+import type { SceneObject, ObjectShape } from '@/contexts/studio-context';
+import { useStudio } from '@/contexts/studio-context';
 
-type Vector3 = { x: number; y: number; z: number; };
 
 interface StudioSceneProps {
-  backgroundColor: string;
   objects: SceneObject[];
   selectedObjectId: string | null;
   onSelectObject: (id: string | null) => void;
@@ -31,12 +30,12 @@ const getGeometry = (shape: ObjectShape): THREE.BufferGeometry => {
 }
 
 export function StudioScene({ 
-    backgroundColor, 
     objects,
     selectedObjectId,
     onSelectObject,
     onObjectChange
 }: StudioSceneProps) {
+  const { backgroundColor } = useStudio();
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -67,8 +66,8 @@ export function StudioScene({
     const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     renderer.setSize(currentMount.clientWidth, currentMount.clientHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
-    currentMount.appendChild(renderer.domElement);
     rendererRef.current = renderer;
+    currentMount.appendChild(renderer.domElement);
 
     // Controls
     const controls = new OrbitControls(camera, renderer.domElement);
