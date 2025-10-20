@@ -10,7 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
-import { Upload, Link, Play, Pause, Download, Share2, Loader2, Music } from 'lucide-react';
+import { Upload, Link, Play, Pause, Download, Share2, Loader2, Music, Sparkles } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import type { VisualizationType } from '@/types';
 
 export default function ControlsPanel() {
   const { 
@@ -22,7 +24,9 @@ export default function ControlsPanel() {
     mood,
     isLoading,
     progress,
-    seek
+    seek,
+    visualizationType,
+    setVisualizationType
   } = useVisualizer();
   const { toast } = useToast();
 
@@ -126,17 +130,29 @@ export default function ControlsPanel() {
             </div>
           </div>
         </div>
+        
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold flex items-center gap-2"><Sparkles className="text-primary"/> Visuals</h3>
+           <Select onValueChange={(value: VisualizationType) => setVisualizationType(value)} defaultValue={visualizationType}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a visualization" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="sphere_pulse">Sphere Pulse</SelectItem>
+              <SelectItem value="warp_drive">Warp Drive</SelectItem>
+              <SelectItem value="cosmic_web">Cosmic Web</SelectItem>
+              <SelectItem value="tidal_wave">Tidal Wave</SelectItem>
+            </SelectContent>
+          </Select>
 
-        <div className="space-y-2">
-            <h3 className="text-lg font-semibold">Vibe Analysis</h3>
-            <div className="flex items-center gap-2">
-                <span className="text-muted-foreground">Current Mood:</span>
-                {isLoading ? (
-                    <Loader2 className="animate-spin" />
-                ) : (
-                    <Badge variant="secondary" className="capitalize text-base px-3 py-1 bg-accent/20 text-accent-foreground border-accent">{mood}</Badge>
-                )}
-            </div>
+          <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">Vibe:</span>
+              {isLoading ? (
+                  <Loader2 className="animate-spin" />
+              ) : (
+                  <Badge variant="secondary" className="capitalize text-base px-3 py-1 bg-accent/20 text-accent-foreground border-accent">{mood}</Badge>
+              )}
+          </div>
         </div>
 
         <div className="space-y-2 flex-grow flex flex-col justify-end">

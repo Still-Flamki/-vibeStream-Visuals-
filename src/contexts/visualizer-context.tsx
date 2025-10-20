@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useState, useRef, useEffect, useCallback, type ReactNode } from 'react';
 import * as Tone from 'tone';
-import type { Mood } from '@/types';
+import type { Mood, VisualizationType } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
 interface VisualizerContextType {
@@ -18,6 +18,8 @@ interface VisualizerContextType {
   mood: Mood;
   isLoading: boolean;
   progress: number;
+  visualizationType: VisualizationType;
+  setVisualizationType: (type: VisualizationType) => void;
 }
 
 const VisualizerContext = createContext<VisualizerContextType | undefined>(undefined);
@@ -30,6 +32,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   const [mood, setMood] = useState<Mood>('chill');
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [visualizationType, setVisualizationType] = useState<VisualizationType>('sphere_pulse');
 
   const player = useRef<Tone.Player | null>(null);
   const analyser = useRef<Tone.Analyser | null>(null);
@@ -174,7 +177,10 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       setIsPlaying(false);
       cancelAnimationFrame(animationFrameId.current);
     } else {
-      player.current.sync().start(0, Tone.Transport.seconds);
+      // This syncs the player to the transport, which is crucial
+      if (!player.current.synced) {
+        player.current.sync().start(0);
+      }
       Tone.Transport.start();
       setIsPlaying(true);
       animationFrameId.current = requestAnimationFrame(updateProgress);
@@ -192,7 +198,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const value = {
+  const value: VisualizerContextType = {
     loadAudioFile,
     loadAudioUrl,
     togglePlay,
@@ -204,6 +210,8 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     mood,
     isLoading,
     progress,
+    visualizationType,
+    setVisualizationType,
   };
 
   return (
