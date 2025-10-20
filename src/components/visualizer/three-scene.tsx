@@ -109,12 +109,15 @@ export default function ThreeScene({ analyserNode, isPlaying, mood }: ThreeScene
                 
                 const newRadius = r + bassBoost * (frequencyData[i % frequencyData.length] / 20);
                 
-                positionAttribute.setXYZ(
-                    i,
-                    initialPositions[i3] / r * newRadius,
-                    initialPositions[i3 + 1] / r * newRadius,
-                    initialPositions[i3 + 2] / r * newRadius
-                );
+                if (r > 0) {
+                    positionAttribute.setXYZ(
+                        i,
+                        initialPositions[i3] / r * newRadius,
+                        initialPositions[i3 + 1] / r * newRadius,
+                        initialPositions[i3 + 2] / r * newRadius
+                    );
+                }
+
 
                 const mixFactor = (initialPositions[i3+1] / r + 1) / 2;
                 const color = c1.clone().lerp(c2, mixFactor);
