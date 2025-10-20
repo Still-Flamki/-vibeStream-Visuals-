@@ -87,7 +87,6 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     player.current = null;
     setAnalyserNode(null);
 
-    streamDestinationRef.current = null;
     setIsPlaying(false);
     setAudioSrc(null);
     setFileName(null);
@@ -109,7 +108,10 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
   const loadAudio = useCallback(async (url: string, name?: string) => {
     setIsLoading(true);
-    cleanup();
+    
+    if (player.current) {
+        cleanup();
+    }
     
     try {
       await Tone.start();
@@ -332,3 +334,5 @@ export function useVisualizer(): VisualizerContextType {
   }
   return context;
 }
+
+    
