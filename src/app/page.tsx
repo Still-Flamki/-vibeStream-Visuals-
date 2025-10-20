@@ -37,7 +37,7 @@ const features = [
 ];
 
 export default function HomePage() {
-  const heroImage = placeholderImages.find(p => p.id === 'hero-visual')!;
+  const heroImage = placeholderImages.find(p => p.id === 'hero-visual-alt')!;
   const featureImage = placeholderImages.find(p => p.id === 'feature-export')!;
 
   return (
@@ -84,18 +84,7 @@ export default function HomePage() {
                     <p className="text-muted-foreground mt-4 max-w-2xl mx-auto">VibeStream Visuals isn't just a player; it's an instrument. Explore features designed to bring your music to life.</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12 max-w-6xl mx-auto">
-                    {features.slice(0, 3).map((feature, index) => (
-                    <div key={index} className="flex flex-col items-center text-center">
-                        <div className="p-4 bg-primary/10 rounded-lg border border-primary/20 mb-4">
-                            {feature.icon}
-                        </div>
-                        <h3 className="text-xl font-bold font-headline">{feature.title}</h3>
-                        <p className="text-muted-foreground mt-2">{feature.description}</p>
-                    </div>
-                    ))}
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-12 max-w-4xl mx-auto mt-12">
-                     {features.slice(3).map((feature, index) => (
+                    {features.map((feature, index) => (
                     <div key={index} className="flex flex-col items-center text-center">
                         <div className="p-4 bg-primary/10 rounded-lg border border-primary/20 mb-4">
                             {feature.icon}
