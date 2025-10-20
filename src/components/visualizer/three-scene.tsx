@@ -382,16 +382,15 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
                 const theta = Math.sqrt(particleCount * Math.PI) * phi;
 
                 const isLand = (Math.sin(phi * 5) * Math.cos(theta * 7) + Math.sin(phi * 3) * Math.sin(theta * 5)) > 0.3;
-                if (isLand) {
-                    positions[i3] = radius * Math.cos(theta) * Math.sin(phi);
-                    positions[i3 + 1] = radius * Math.sin(theta) * Math.sin(phi);
-                    positions[i3 + 2] = radius * Math.cos(phi);
-                } else {
-                    // Place non-land points far away or skip them
-                    positions[i3] = Infinity;
-                    positions[i3+1] = Infinity;
-                    positions[i3+2] = Infinity;
+                
+                let r = radius;
+                if (!isLand) {
+                    r = radius * 0.98; // Place water slightly inside
                 }
+                
+                positions[i3] = r * Math.cos(theta) * Math.sin(phi);
+                positions[i3 + 1] = r * Math.sin(theta) * Math.sin(phi);
+                positions[i3 + 2] = r * Math.cos(phi);
             }
             break;
         }
