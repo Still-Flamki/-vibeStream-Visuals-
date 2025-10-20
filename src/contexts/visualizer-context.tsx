@@ -27,8 +27,8 @@ interface VisualizerContextType {
   isRecording: boolean;
   startRecording: (threeSceneRef: React.RefObject<ThreeSceneHandle>, quality: VideoQuality) => boolean;
   stopRecording: () => void;
-  aspectRatio: number;
-  setAspectRatio: (ratio: number) => void;
+  aspectRatio: string;
+  setAspectRatio: (ratio: string) => void;
 }
 
 const VisualizerContext = createContext<VisualizerContextType | undefined>(undefined);
@@ -37,6 +37,14 @@ const qualitySettings = {
   '720p': { vertical: 720, bitrate: 5 * 1000 * 1000 },
   '1080p': { vertical: 1080, bitrate: 8 * 1000 * 1000 },
   '4k': { vertical: 2160, bitrate: 20 * 1000 * 1000 },
+};
+
+const aspectRatios: { [key: string]: { label: string; value: number, isMobile: boolean } } = {
+  '16:9': { label: 'Widescreen (16:9)', value: 16 / 9, isMobile: false },
+  '9:16': { label: 'Portrait (9:16)', value: 9 / 16, isMobile: true },
+  '1:1': { label: 'Square (1:1)', value: 1 / 1, isMobile: false },
+  '4:5': { label: 'Social (4:5)', value: 4 / 5, isMobile: true },
+  '2.39:1': { label: 'Cinematic (2.39:1)', value: 2.39 / 1, isMobile: false },
 };
 
 export function VisualizerProvider({ children }: { children: ReactNode }) {
@@ -48,7 +56,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [visualizationType, setVisualizationType] = useState<VisualizationType>('sphere_pulse');
-  const [aspectRatio, setAspectRatio] = useState(16/9);
+  const [aspectRatio, setAspectRatio] = useState('16:9');
   const [controls, setControls] = useState<VisualizerControls>({
     particleSize: 0.8,
     bassSensitivity: 1.0,
@@ -235,11 +243,12 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     if (isRecording || !streamDestinationRef.current || !canvas) return false;
 
     const settings = qualitySettings[quality];
-    const width = Math.round(settings.vertical * aspectRatio);
+    const numericAspectRatio = aspectRatios[aspectRatio].value;
+    const width = Math.round(settings.vertical * numericAspectRatio);
     const height = settings.vertical;
 
     try {
-      threeSceneRef.current?.resize(width, height);
+      threeSceneRef.current?.resize();
 
       const videoStream = canvas.captureStream(30); // 30 FPS
       const audioStream = streamDestinationRef.current.stream;

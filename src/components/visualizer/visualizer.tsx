@@ -45,6 +45,8 @@ export default function Visualizer() {
   const threeSceneRef = useRef<ThreeSceneHandle>(null);
   const { toast } = useToast();
 
+  const numericAspectRatio = aspectRatios[aspectRatio]?.value || 16/9;
+
   useEffect(() => {
     const handleResize = () => {
       if (threeSceneRef.current) {
@@ -89,8 +91,7 @@ export default function Visualizer() {
   };
 
   const isDisabled = isRecording;
-  const currentAspectRatioKey = Object.keys(aspectRatios).find(key => aspectRatios[key].value === aspectRatio) || '16:9';
-  const isMobileAspectRatio = aspectRatios[currentAspectRatioKey]?.isMobile;
+  const isMobileAspectRatio = aspectRatios[aspectRatio]?.isMobile;
 
   const VisualizerContent = (
       <ThreeScene 
@@ -100,7 +101,7 @@ export default function Visualizer() {
         mood={mood} 
         visualizationType={visualizationType} 
         controls={controls}
-        aspectRatio={aspectRatio}
+        aspectRatio={numericAspectRatio}
       />
   );
 
@@ -109,7 +110,7 @@ export default function Visualizer() {
        <div className="w-full h-full flex items-center justify-center p-4">
         <Card 
           className="relative rounded-lg overflow-hidden bg-black/50 shadow-2xl shadow-primary/20 w-full max-w-7xl max-h-full"
-          style={{aspectRatio: audioSrc ? aspectRatio : '16 / 9'}}
+          style={{aspectRatio: audioSrc ? numericAspectRatio : '16 / 9'}}
         >
           <CardContent className="p-0 h-full w-full">
             {audioSrc && (
@@ -181,7 +182,7 @@ export default function Visualizer() {
                       </div>
                        <div className="space-y-2">
                           <h3 className="text-sm font-semibold flex items-center gap-2"><Crop className="text-primary h-4 w-4"/> Aspect Ratio</h3>
-                          <Select onValueChange={(value: string) => setAspectRatio(aspectRatios[value].value)} defaultValue={Object.keys(aspectRatios).find(key => aspectRatios[key].value === aspectRatio)} disabled={isDisabled}>
+                          <Select onValueChange={(value: string) => setAspectRatio(value)} defaultValue={aspectRatio} disabled={isDisabled}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select an aspect ratio" />
                             </SelectTrigger>
@@ -219,8 +220,7 @@ export default function Visualizer() {
                       <Slider id="bassSensitivity" min={0} max={2} step={0.1} value={[controls.bassSensitivity]} onValueChange={([val]) => setControls(c => ({...c, bassSensitivity: val}))} disabled={isDisabled} />
                     </div>
                     <div className='space-y-1'>
-                      <Label htmlFor='trebleSensitivity' className="text-xs">Treble Reactivity</Label>
-                      <Slider id="trebleSensitivity" min={0} max={2} step={0.1} value={[controls.trebleSensitivity]} onValueChange={([val]) => setControls(c => ({...c, trebleSensitivity: val}))} disabled={isDisabled} />
+                      <Label htmlFor='trebleSensitivity' className="text-xs">Treble Reactivity</Label>                      <Slider id="trebleSensitivity" min={0} max={2} step={0.1} value={[controls.trebleSensitivity]} onValueChange={([val]) => setControls(c => ({...c, trebleSensitivity: val}))} disabled={isDisabled} />
                     </div>
                   </div>
                 </div>
