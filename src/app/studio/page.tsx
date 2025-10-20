@@ -3,7 +3,7 @@
 
 import { Sidebar, SidebarContent, SidebarInset, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { Card, CardContent } from '@/components/ui/card';
-import { SlidersHorizontal, Box, Layers, Camera, Move3d, Rotate3d, Scale3d, PlusCircle } from 'lucide-react';
+import { SlidersHorizontal, Box, Layers, Camera, Move3d, Rotate3d, Scale3d, PlusCircle, Trash2 } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { StudioScene } from '@/components/studio/studio-scene';
 import { useState } from 'react';
@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type Vector3 = {
     x: number;
@@ -19,9 +20,12 @@ type Vector3 = {
     z: number;
 };
 
-type SceneObject = {
+export type ObjectShape = 'cube' | 'sphere' | 'cone' | 'torus';
+
+export type SceneObject = {
     id: string;
     name: string;
+    shape: ObjectShape;
     position: Vector3;
     rotation: Vector3;
     scale: Vector3;
@@ -36,6 +40,7 @@ export default function StudioPage() {
     'default-cube': {
         id: 'default-cube',
         name: 'Default Cube',
+        shape: 'cube',
         position: { x: 0, y: 0.5, z: 0 },
         rotation: { x: 0, y: 0, z: 0 },
         scale: { x: 1, y: 1, z: 1 },
@@ -65,13 +70,25 @@ export default function StudioPage() {
     const newId = `cube-${objectCount}`;
     const newObject: SceneObject = {
         id: newId,
-        name: `Cube ${objectCount}`,
+        name: `Object ${objectCount}`,
+        shape: 'cube',
         position: { x: (Math.random() - 0.5) * 10, y: 0.5, z: (Math.random() - 0.5) * 10 },
         rotation: { x: 0, y: 0, z: 0 },
         scale: { x: 1, y: 1, z: 1 },
     };
     setObjects(prev => ({ ...prev, [newId]: newObject }));
     setSelectedObjectId(newId);
+  };
+  
+  const handleDeleteObject = (id: string) => {
+    setObjects(prev => {
+        const newObjects = { ...prev };
+        delete newObjects[id];
+        return newObjects;
+    });
+    if (selectedObjectId === id) {
+        setSelectedObjectId(null);
+    }
   };
 
   return (
@@ -95,7 +112,7 @@ export default function StudioPage() {
                         </div>
                          <SidebarMenu>
                              {Object.values(objects).map(obj => (
-                                <SidebarMenuItem key={obj.id}>
+                                <SidebarMenuItem key={obj.id} className="group/item">
                                   <SidebarMenuButton 
                                     size="sm" 
                                     isActive={selectedObjectId === obj.id}
@@ -104,6 +121,14 @@ export default function StudioPage() {
                                       <Box className="h-4 w-4" />
                                       <span>{obj.name}</span>
                                   </SidebarMenuButton>
+                                  <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      className="h-6 w-6 absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/item:opacity-100"
+                                      onClick={() => handleDeleteObject(obj.id)}
+                                    >
+                                        <Trash2 className="h-4 w-4 text-muted-foreground" />
+                                  </Button>
                               </SidebarMenuItem>
                              ))}
                               <SidebarMenuItem>
@@ -139,6 +164,26 @@ export default function StudioPage() {
                             <>
                                 <Separator />
                                 <p className="font-medium text-sm text-center">{selectedObject.name}</p>
+                                
+                                <div className="space-y-2">
+                                    <Label>Shape</Label>
+                                    <Select 
+                                        value={selectedObject.shape} 
+                                        onValueChange={(value: ObjectShape) => handleObjectChange(selectedObject.id, { shape: value })}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select shape" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="cube">Cube</SelectItem>
+                                            <SelectItem value="sphere">Sphere</SelectItem>
+                                            <SelectItem value="cone">Cone</SelectItem>
+                                            <SelectItem value="torus">Torus</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <Separator />
                                 {/* Position */}
                                 <div className="space-y-3">
                                     <div className="flex items-center gap-2 font-medium">
@@ -213,3 +258,5 @@ export default function StudioPage() {
     </>
   );
 }
+
+    

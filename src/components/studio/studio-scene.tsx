@@ -4,16 +4,9 @@
 import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import type { SceneObject, ObjectShape } from '@/app/studio/page';
 
 type Vector3 = { x: number; y: number; z: number; };
-
-type SceneObject = {
-  id: string;
-  name: string;
-  position: Vector3;
-  rotation: Vector3;
-  scale: Vector3;
-};
 
 interface StudioSceneProps {
   backgroundColor: string;
@@ -21,6 +14,20 @@ interface StudioSceneProps {
   selectedObjectId: string | null;
   onSelectObject: (id: string | null) => void;
   onObjectChange: (id: string, newProps: Partial<SceneObject>) => void;
+}
+
+const getGeometry = (shape: ObjectShape): THREE.BufferGeometry => {
+    switch (shape) {
+        case 'sphere':
+            return new THREE.SphereGeometry(0.7, 32, 16);
+        case 'cone':
+            return new THREE.ConeGeometry(0.7, 1.5, 32);
+        case 'torus':
+            return new THREE.TorusGeometry(0.6, 0.2, 16, 100);
+        case 'cube':
+        default:
+            return new THREE.BoxGeometry(1, 1, 1);
+    }
 }
 
 export function StudioScene({ 
@@ -187,7 +194,11 @@ export function StudioScene({
         if (!currentIds.has(id)) {
             scene.remove(mesh);
             mesh.geometry.dispose();
-            (mesh.material as THREE.Material).dispose();
+            if(Array.isArray(mesh.material)) {
+                mesh.material.forEach(m => m.dispose());
+            } else {
+                mesh.material.dispose();
+            }
             objectMeshes.current.delete(id);
         }
     });
@@ -195,14 +206,24 @@ export function StudioScene({
     // Add/Update meshes
     objects.forEach(obj => {
         let mesh = objectMeshes.current.get(obj.id);
+        
+        // If shape has changed, create a new mesh
+        if (mesh && mesh.userData.shape !== obj.shape) {
+            scene.remove(mesh);
+            mesh.geometry.dispose();
+            (mesh.material as THREE.Material).dispose();
+            mesh = undefined;
+        }
+
         if (!mesh) {
-            const geometry = new THREE.BoxGeometry(1, 1, 1);
+            const geometry = getGeometry(obj.shape);
             const material = new THREE.MeshStandardMaterial({ 
               color: new THREE.Color().setHSL(Math.random(), 0.7, 0.6),
               emissive: 0x000000, 
             });
             mesh = new THREE.Mesh(geometry, material);
             mesh.userData.id = obj.id;
+            mesh.userData.shape = obj.shape;
             scene.add(mesh);
             objectMeshes.current.set(obj.id, mesh);
         }
@@ -236,3 +257,5 @@ export function StudioScene({
 
   return <div ref={mountRef} className="w-full h-full cursor-pointer" />;
 }
+
+    
