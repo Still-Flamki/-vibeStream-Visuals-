@@ -18,7 +18,7 @@ export default function StudioPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <Header />
-      <div className="flex-grow">
+      <div className="flex-grow flex">
         <Sidebar>
             <SidebarContent className="p-4">
                 <Accordion type="multiple" defaultValue={['scene', 'properties']} className="w-full">
@@ -76,7 +76,7 @@ export default function StudioPage() {
             <main className="flex-grow flex items-center justify-center rounded-lg bg-black/30 border border-border overflow-hidden">
                 <StudioScene backgroundColor={backgroundColor} />
             </main>
-             <Card className="h-48">
+             <Card className="h-48 shrink-0">
                 <CardContent className="p-4 flex items-center justify-center h-full">
                     <p className="text-muted-foreground">Timeline / Keyframes</p>
                 </CardContent>
