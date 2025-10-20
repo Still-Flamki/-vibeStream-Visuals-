@@ -11,7 +11,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { Video, Download, Share2, CircleDot, Sparkles, Loader2, Crop, Undo2, Redo2, RotateCcw, RotateCw, Palette } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { VideoQuality, VisualizationType, ColorMode } from '@/types';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '../ui/select';
 import { Badge } from '../ui/badge';
 import { Label } from '../ui/label';
 import { Slider } from '../ui/slider';
@@ -138,6 +138,8 @@ export default function Visualizer() {
                               <SelectValue placeholder="Select a visualization" />
                           </SelectTrigger>
                           <SelectContent>
+                            <SelectGroup>
+                              <SelectLabel>Particles</SelectLabel>
                               <SelectItem value="sphere_pulse">Sphere Pulse</SelectItem>
                               <SelectItem value="warp_drive">Warp Drive</SelectItem>
                               <SelectItem value="cosmic_web">Cosmic Web</SelectItem>
@@ -147,6 +149,7 @@ export default function Visualizer() {
                               <SelectItem value="galaxy">Galaxy</SelectItem>
                               <SelectItem value="heartbeat">Heartbeat</SelectItem>
                               <SelectItem value="digital_earth">Digital Earth</SelectItem>
+                            </SelectGroup>
                           </SelectContent>
                         </Select>
                     </div>
