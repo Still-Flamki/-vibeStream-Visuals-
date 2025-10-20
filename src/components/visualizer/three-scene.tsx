@@ -30,6 +30,7 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
   const visualRef = useRef<THREE.Points | THREE.Mesh>();
   const initialPositionsRef = useRef<Float32Array>();
   const clockRef = useRef(new THREE.Clock());
+  const animationFrameIdRef = useRef<number>(0);
 
   // Store a mutable reference to the props that the animation loop can access
   const latestProps = useRef({ analyserNode, isPlaying, mood, visualizationType, controls, aspectRatio });
@@ -46,13 +47,13 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
       if (rendererRef.current && cameraRef.current && mountRef.current) {
         const { clientWidth, clientHeight } = mountRef.current;
         rendererRef.current.setSize(clientWidth, clientHeight);
-        cameraRef.current.aspect = clientWidth / clientHeight;
+        cameraRef.current.aspect = clientWidth > 0 && clientHeight > 0 ? clientWidth / clientHeight : 1;
         cameraRef.current.updateProjectionMatrix();
       }
     },
     setAspectRatio: (aspect: number) => {
        if (cameraRef.current && mountRef.current) {
-          cameraRef.current.aspect = aspect;
+          cameraRef.current.aspect = aspect > 0 ? aspect : 1;
           cameraRef.current.updateProjectionMatrix();
           ref.current?.resize();
        }
@@ -107,13 +108,14 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
 
         let x = ix, y = iy, z = iz;
         const freqIndex = i % (frequencyData?.length || 1);
-        const freqValue = (frequencyData && isFinite(frequencyData[freqIndex])) ? frequencyData[freqIndex] : 0;
+        const rawFreqValue = (frequencyData && isFinite(frequencyData[freqIndex])) ? frequencyData[freqIndex] : -Infinity;
+        const freqValue = rawFreqValue > -100 ? (rawFreqValue + 100) / 100 : 0; // Normalize dB from -100,0 to 0,1
 
         if (isPlaying) {
             switch (visualizationType) {
                 case 'sphere_pulse': {
                     const r = Math.sqrt(ix*ix + iy*iy + iz*iz);
-                    const displacement = bassBoost * (freqValue / 10);
+                    const displacement = freqValue * bassBoost * 5;
                     const newRadius = r + displacement;
                     if (r > 0 && isFinite(newRadius)) {
                         const ratio = newRadius / r;
@@ -126,7 +128,6 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
                 case 'warp_drive': {
                     const r = Math.sqrt(ix*ix + iy*iy);
                     const angle = Math.atan2(iy, ix);
-                    const displacement = bassBoost * 50;
                     x = r * Math.cos(angle + iz * 0.1 * bassBoost);
                     y = r * Math.sin(angle + iz * 0.1 * bassBoost);
                     z = (iz + time * 50 * (1 + bassBoost)) % 200 - 100;
@@ -147,8 +148,8 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
                 case 'tidal_wave': {
                     const wave = Math.sin(ix * 0.2 + time * 2) * bassBoost * 20;
                     const crest = Math.pow(Math.max(0, Math.sin(ix * 0.1 + time * 3)), 5) * trebleBoost * 30;
-                    const freqDisplacement = freqValue ? freqValue * 0.01 : 0;
-                    y = wave + crest + iy * (1 + freqDisplacement);
+                    const freqDisplacement = freqValue * 10;
+                    y = wave + crest + iy + freqDisplacement;
                     break;
                 }
             }
@@ -196,7 +197,8 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
     sceneRef.current = scene;
 
     // Camera
-    const camera = new THREE.PerspectiveCamera(75, currentMount.clientWidth / currentMount.clientHeight, 0.1, 1000);
+    const aspect = currentMount.clientWidth / currentMount.clientHeight;
+    const camera = new THREE.PerspectiveCamera(75, aspect > 0 ? aspect : 1, 0.1, 1000);
     camera.position.z = 100;
     cameraRef.current = camera;
 
@@ -216,9 +218,8 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
     orbitControlsRef.current = orbitControls;
 
     // Animation and visual logic
-    let animationFrameId: number;
     const animate = () => {
-        animationFrameId = requestAnimationFrame(animate);
+        animationFrameIdRef.current = requestAnimationFrame(animate);
 
         if (!sceneRef.current || !cameraRef.current || !rendererRef.current) return;
         
@@ -243,7 +244,7 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      cancelAnimationFrame(animationFrameId);
+      cancelAnimationFrame(animationFrameIdRef.current);
       if (currentMount && renderer.domElement) {
         currentMount.removeChild(renderer.domElement);
       }
@@ -345,8 +346,8 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
     }
     
     geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     initialPositionsRef.current = new Float32Array(positions);
+    geometry.setAttribute('position', new THREE.BufferAttribute(initialPositionsRef.current.slice(), 3));
 
     const colors = new Float32Array(positions.length);
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));

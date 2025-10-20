@@ -79,6 +79,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
   // Cleanup function to dispose of Tone.js objects
   const cleanup = useCallback(() => {
+    console.log("Cleaning up Tone.js objects");
     if (Tone.Transport.state !== 'stopped') {
         Tone.Transport.stop();
         Tone.Transport.cancel();
@@ -115,17 +116,30 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     try {
       await Tone.start();
       
-      analyser.current = new Tone.Analyser('fft', 2048);
+      analyser.current = new Tone.Analyser('fft', 1024);
       streamDestinationRef.current = Tone.context.createMediaStreamDestination();
       
-      player.current = new Tone.Player(url, async () => {
-        if (player.current && analyser.current && streamDestinationRef.current) {
-            player.current.fan(analyser.current, Tone.Destination, streamDestinationRef.current);
-            setAudioSrc(url);
-            setFileName(name || url.split('/').pop() || "Audio Track");
-            await analyzeAndSetMood();
-            setIsLoading(false);
-        }
+      player.current = new Tone.Player({
+          url: url,
+          onload: async () => {
+            if (player.current && analyser.current && streamDestinationRef.current) {
+                console.log("Audio loaded, connecting nodes");
+                player.current.connect(analyser.current);
+                player.current.connect(streamDestinationRef.current);
+                player.current.toDestination();
+                
+                setAudioSrc(url);
+                setFileName(name || url.split('/').pop() || "Audio Track");
+                await analyzeAndSetMood();
+                setIsLoading(false);
+            }
+          },
+          onerror: (err) => {
+             console.error("Tone.Player error:", err);
+             toast({ variant: 'destructive', title: "Audio Error", description: "Failed to load audio file. It may be corrupt or in an unsupported format." });
+             cleanup();
+             setIsLoading(false);
+          }
       });
       
       await Tone.loaded();
