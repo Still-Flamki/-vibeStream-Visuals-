@@ -163,6 +163,31 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
                     y = wave + crest + iy + freqDisplacement;
                     break;
                 }
+                case 'torus_knot': {
+                    const r = Math.sqrt(ix * ix + iy * iy + iz * iz);
+                    const displacement = freqValue * bassBoost * 0.5;
+                    const noise = trebleBoost * (Math.sin(iy * 0.5 + time) + Math.cos(ix * 0.5 + time));
+                     if (r > 0 && isFinite(r + displacement + noise)) {
+                        const ratio = (r + displacement + noise) / r;
+                        x = ix * ratio;
+                        y = iy * ratio;
+                        z = iz * ratio;
+                    }
+                    break;
+                }
+                case 'audio_city': {
+                    const barFreqIndex = Math.floor(i / 4) % (frequencyData?.length || 1);
+                    const barRawFreqValue = (frequencyData && isFinite(frequencyData[barFreqIndex])) ? frequencyData[barFreqIndex] : -Infinity;
+                    const barFreqValue = barRawFreqValue > -100 ? (barRawFreqValue + 100) / 100 : 0;
+                    const height = Math.max(0, barFreqValue * 100 * bassBoost);
+                    
+                    if (i % 4 === 1 || i % 4 === 2) {
+                        y = iy + height;
+                    } else {
+                        y = iy;
+                    }
+                    break;
+                }
             }
         }
 
@@ -173,7 +198,7 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
         }
 
         if (colorAttribute) {
-            let color = new THREE.Color();
+            let color: THREE.Color;
             switch(colorMode) {
                 case 'mood':
                     const mixFactor = (iy / 100 + 1) / 2;
@@ -181,7 +206,7 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
                     break;
                 case 'multicolor':
                     const hue = (time * 0.1 + ix * 0.01) % 1;
-                    color.setHSL(hue, 1, 0.5);
+                    color = new THREE.Color().setHSL(hue, 1, 0.5);
                     break;
                 case 'crimson':
                 case 'ocean':
@@ -190,6 +215,9 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
                 case 'violet':
                 case 'pink':
                     color = presetColors[colorMode].clone();
+                    break;
+                default:
+                    color = new THREE.Color(0xffffff);
                     break;
             }
             
@@ -356,6 +384,47 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
                 positions[i3 + 2] = (Math.random() - 0.5) * 150;
             }
             break;
+        case 'torus_knot':
+            particleCount = 10000;
+            positions = new Float32Array(particleCount * 3);
+            const p = 2, q = 3;
+            const radius = 30;
+            const tube = 15;
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                const u = (i / particleCount) * Math.PI * 2 * p;
+                const r = Math.cos(q * u) + radius;
+                const x = r * Math.cos(p * u);
+                const y = r * Math.sin(p * u);
+                const z = -Math.sin(q * u) * tube;
+                
+                const randomRadius = Math.random() * tube;
+                const randomAngle = Math.random() * Math.PI * 2;
+                const randomAngle2 = Math.random() * Math.PI * 2;
+
+                positions[i3] = x + Math.cos(randomAngle) * randomRadius;
+                positions[i3 + 1] = y + Math.sin(randomAngle) * randomRadius;
+                positions[i3 + 2] = z + Math.sin(randomAngle2) * randomRadius;
+            }
+            break;
+         case 'audio_city':
+            const citySize = 50;
+            const barWidth = 4;
+            const barSpacing = 2;
+            const positionsList: number[] = [];
+            for (let i = -citySize; i < citySize; i += barWidth + barSpacing) {
+                for (let j = -citySize; j < citySize; j += barWidth + barSpacing) {
+                    const x = i;
+                    const z = j;
+                    // Define a quad for the top of the bar
+                    positionsList.push(x, 0, z);
+                    positionsList.push(x + barWidth, 0, z);
+                    positionsList.push(x + barWidth, 0, z + barWidth);
+                    positionsList.push(x, 0, z + barWidth);
+                }
+            }
+            positions = new Float32Array(positionsList);
+            break;
         case 'tidal_wave':
         default:
             const size = 200;
@@ -381,15 +450,33 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
     const colors = new Float32Array(positions.length);
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     
-    let material = new THREE.PointsMaterial({
-        size: controls.particleSize * (visualizationType === 'tidal_wave' ? 1.5 : 1),
-        vertexColors: true,
-        blending: THREE.AdditiveBlending,
-        transparent: true,
-        sizeAttenuation: true,
-    });
+    let material: THREE.PointsMaterial | THREE.MeshBasicMaterial;
 
-    newVisual = new THREE.Points(geometry, material);
+    if (visualizationType === 'audio_city') {
+        const indices: number[] = [];
+        const numQuads = positions.length / 3 / 4;
+        for (let i = 0; i < numQuads; i++) {
+            const base = i * 4;
+            indices.push(base, base + 1, base + 2);
+            indices.push(base, base + 2, base + 3);
+        }
+        geometry.setIndex(indices);
+        material = new THREE.MeshBasicMaterial({
+            vertexColors: true,
+            side: THREE.DoubleSide
+        });
+        newVisual = new THREE.Mesh(geometry, material);
+    } else {
+        material = new THREE.PointsMaterial({
+            size: controls.particleSize * (visualizationType === 'tidal_wave' ? 1.5 : 1),
+            vertexColors: true,
+            blending: THREE.AdditiveBlending,
+            transparent: true,
+            sizeAttenuation: true,
+        });
+        newVisual = new THREE.Points(geometry, material);
+    }
+
     visualRef.current = newVisual;
     sceneRef.current.add(newVisual);
 
@@ -398,11 +485,11 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
   // Update material based on controls
   useEffect(() => {
     if (visualRef.current && 'material' in visualRef.current) {
-      const material = (visualRef.current as THREE.Points).material as THREE.PointsMaterial;
-      if (material) {
-        material.size = controls.particleSize * (visualizationType === 'tidal_wave' ? 1.5 : 1);
-        material.needsUpdate = true;
-      }
+        const material = (visualRef.current as THREE.Points).material;
+        if (material && 'size' in material) {
+            (material as THREE.PointsMaterial).size = controls.particleSize * (visualizationType === 'tidal_wave' ? 1.5 : 1);
+            material.needsUpdate = true;
+        }
     }
   }, [controls.particleSize, visualizationType]);
   
@@ -412,6 +499,3 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
 
 ThreeScene.displayName = 'ThreeScene';
 export default ThreeScene;
-
-    
-    

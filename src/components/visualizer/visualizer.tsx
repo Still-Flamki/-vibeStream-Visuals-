@@ -142,6 +142,8 @@ export default function Visualizer() {
                               <SelectItem value="warp_drive">Warp Drive</SelectItem>
                               <SelectItem value="cosmic_web">Cosmic Web</SelectItem>
                               <SelectItem value="tidal_wave">Tidal Wave</SelectItem>
+                              <SelectItem value="torus_knot">Torus Knot</SelectItem>
+                              <SelectItem value="audio_city">Audio City</SelectItem>
                           </SelectContent>
                         </Select>
                     </div>
@@ -301,5 +303,3 @@ export default function Visualizer() {
     </div>
   );
 }
-
-    
