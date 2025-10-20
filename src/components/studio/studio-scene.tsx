@@ -7,11 +7,15 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 interface StudioSceneProps {
   backgroundColor: string;
+  position: { x: number; y: number; z: number; };
+  rotation: { x: number; y: number; z: number; };
+  scale: { x: number; y: number; z: number; };
 }
 
-export function StudioScene({ backgroundColor }: StudioSceneProps) {
+export function StudioScene({ backgroundColor, position, rotation, scale }: StudioSceneProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
+  const cubeRef = useRef<THREE.Mesh | null>(null);
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -47,9 +51,10 @@ export function StudioScene({ backgroundColor }: StudioSceneProps) {
     scene.add(directionalLight);
 
     // Default Cube
-    const geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+    const geometry = new THREE.BoxGeometry(1, 1, 1); // Use 1x1x1 and control size via scale
     const material = new THREE.MeshStandardMaterial({ color: 0x6f42c1 });
     const cube = new THREE.Mesh(geometry, material);
+    cubeRef.current = cube;
     scene.add(cube);
     
     // Grid Helper
@@ -97,6 +102,28 @@ export function StudioScene({ backgroundColor }: StudioSceneProps) {
       sceneRef.current.background = new THREE.Color(backgroundColor);
     }
   }, [backgroundColor]);
+
+  useEffect(() => {
+    if (cubeRef.current) {
+      cubeRef.current.position.set(position.x, position.y, position.z);
+    }
+  }, [position]);
+
+  useEffect(() => {
+    if (cubeRef.current) {
+      cubeRef.current.rotation.set(
+        THREE.MathUtils.degToRad(rotation.x),
+        THREE.MathUtils.degToRad(rotation.y),
+        THREE.MathUtils.degToRad(rotation.z)
+      );
+    }
+  }, [rotation]);
+
+  useEffect(() => {
+    if (cubeRef.current) {
+      cubeRef.current.scale.set(scale.x, scale.y, scale.z);
+    }
+  }, [scale]);
 
   return <div ref={mountRef} className="w-full h-full" />;
 }
