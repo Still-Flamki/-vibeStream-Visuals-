@@ -63,8 +63,8 @@ export default function Visualizer() {
 
   return (
     <div className="w-full h-full max-w-7xl mx-auto grid grid-cols-1 xl:grid-cols-3 gap-4 p-4">
-      <div className="xl:col-span-2 h-full flex flex-col gap-4">
-        <Card className="flex-grow relative rounded-lg overflow-hidden bg-black shadow-2xl shadow-primary/20 border-accent/20">
+      <div className="xl:col-span-2 h-full flex flex-col gap-4 min-h-[480px]">
+        <Card className="flex-grow relative rounded-lg overflow-hidden bg-black/50 shadow-2xl shadow-primary/20 border-primary/20 backdrop-blur-sm">
           <CardContent className="p-0 h-full w-full">
             {audioSrc && (
               <div className="absolute top-4 right-4 z-10 flex gap-2">
@@ -113,7 +113,7 @@ export default function Visualizer() {
         </Card>
       </div>
 
-      <div className="xl:col-span-1 h-full min-h-[300px] xl:min-h-0">
+      <div className="xl:col-span-1 h-full min-h-[480px] xl:min-h-0">
         <ControlsPanel />
       </div>
     </div>
