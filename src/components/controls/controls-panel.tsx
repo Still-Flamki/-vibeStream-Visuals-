@@ -10,12 +10,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
-import { Upload, Link, Play, Pause, Download, Share2, Loader2, Music, Sparkles, Video, CircleDot, ChevronDown } from 'lucide-react';
+import { Upload, Link, Play, Pause, Video, Share2, Loader2, Music, Sparkles, ChevronDown, CircleDot, Download } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { VisualizationType, VideoQuality } from '@/types';
 import { Label } from '../ui/label';
 import type { ThreeSceneHandle } from '../visualizer/three-scene';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { ScrollArea } from '../ui/scroll-area';
 
 interface ControlsPanelProps {
   threeSceneRef: React.RefObject<ThreeSceneHandle>;
@@ -108,107 +109,109 @@ export default function ControlsPanel({ threeSceneRef }: ControlsPanelProps) {
         <CardTitle className="font-headline text-2xl">Controls</CardTitle>
         <CardDescription>Load audio and shape your visuals.</CardDescription>
       </CardHeader>
-      <CardContent className="flex-grow flex flex-col gap-4">
-        <div className="space-y-2">
-          <h3 className="text-lg font-semibold flex items-center gap-2"><Sparkles className="text-primary"/> Visual Style</h3>
-           <Select onValueChange={(value: VisualizationType) => setVisualizationType(value)} defaultValue={visualizationType} disabled={isDisabled}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select a visualization" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="sphere_pulse">Sphere Pulse</SelectItem>
-              <SelectItem value="warp_drive">Warp Drive</SelectItem>
-              <SelectItem value="cosmic_web">Cosmic Web</SelectItem>
-              <SelectItem value="tidal_wave">Tidal Wave</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <Tabs defaultValue="upload">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="upload" disabled={isDisabled}><Upload className="mr-2 h-4 w-4" /> Upload</TabsTrigger>
-            <TabsTrigger value="url" disabled={isDisabled}><Link className="mr-2 h-4 w-4" /> URL</TabsTrigger>
-          </TabsList>
-          <TabsContent value="upload" className="mt-4">
-            <Input
-              type="file"
-              accept="audio/*"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              className="hidden"
-              disabled={isDisabled}
-            />
-            <Button className="w-full" onClick={() => fileInputRef.current?.click()} disabled={isDisabled}>
-                {isLoading ? <Loader2 className="animate-spin" /> : 'Select Audio File'}
-            </Button>
-            <p className="text-xs text-muted-foreground mt-2 text-center">Your file is processed locally in your browser.</p>
-          </TabsContent>
-          <TabsContent value="url" className="mt-4 space-y-2">
-            <div className="flex gap-2">
-              <Input
-                type="text"
-                placeholder="https://... (CORS required)"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                disabled={isDisabled}
-              />
-              <Button onClick={handleUrlSubmit} disabled={isDisabled}>
-                {isLoading ? <Loader2 className="animate-spin" /> : 'Load'}
-              </Button>
+      <CardContent className="flex-grow flex flex-col gap-4 overflow-hidden">
+        <ScrollArea className="flex-grow pr-6 -mr-6">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold flex items-center gap-2"><Sparkles className="text-primary"/> Visual Style</h3>
+               <Select onValueChange={(value: VisualizationType) => setVisualizationType(value)} defaultValue={visualizationType} disabled={isDisabled}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a visualization" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sphere_pulse">Sphere Pulse</SelectItem>
+                  <SelectItem value="warp_drive">Warp Drive</SelectItem>
+                  <SelectItem value="cosmic_web">Cosmic Web</SelectItem>
+                  <SelectItem value="tidal_wave">Tidal Wave</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <p className="text-xs text-muted-foreground">Note: Streaming from many sites is blocked due to CORS policies.</p>
-          </TabsContent>
-        </Tabs>
+
+            <Tabs defaultValue="upload">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="upload" disabled={isDisabled}><Upload className="mr-2 h-4 w-4" /> Upload</TabsTrigger>
+                <TabsTrigger value="url" disabled={isDisabled}><Link className="mr-2 h-4 w-4" /> URL</TabsTrigger>
+              </TabsList>
+              <TabsContent value="upload" className="mt-4">
+                <Input
+                  type="file"
+                  accept="audio/*"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  className="hidden"
+                  disabled={isDisabled}
+                />
+                <Button className="w-full" onClick={() => fileInputRef.current?.click()} disabled={isDisabled}>
+                    {isLoading ? <Loader2 className="animate-spin" /> : 'Select Audio File'}
+                </Button>
+                <p className="text-xs text-muted-foreground mt-2 text-center">Your file is processed locally in your browser.</p>
+              </TabsContent>
+              <TabsContent value="url" className="mt-4 space-y-2">
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    placeholder="https://... (CORS required)"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    disabled={isDisabled}
+                  />
+                  <Button onClick={handleUrlSubmit} disabled={isDisabled}>
+                    {isLoading ? <Loader2 className="animate-spin" /> : 'Load'}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">Note: Streaming from many sites is blocked due to CORS policies.</p>
+              </TabsContent>
+            </Tabs>
+            
+            {audioSrc && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Music className="w-4 h-4" />
+                  <span className="truncate flex-1">{fileName}</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <Button onClick={togglePlay} size="icon" className="rounded-full w-14 h-14" disabled={isDisabled || !fileName}>
+                    {isPlaying ? <Pause size={24} /> : <Play size={24} className="ml-1" />}
+                  </Button>
+                  <div className="w-full flex flex-col gap-2">
+                    <Slider value={[progress * 100]} onValueChange={handleSeek} disabled={isDisabled || !fileName}/>
+                  </div>
+                </div>
+              
+                <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">Vibe:</span>
+                    {isLoading ? (
+                        <Loader2 className="animate-spin" />
+                    ) : (
+                        <Badge variant="secondary" className="capitalize text-base px-3 py-1 bg-accent/20 text-accent-foreground border-accent">{mood}</Badge>
+                    )}
+                </div>
+                
+                <div className="space-y-4 pt-2">
+                  <div className='space-y-2'>
+                    <Label htmlFor='particleSize'>Particle Size</Label>
+                    <Slider id="particleSize" min={0.1} max={2} step={0.1} value={[controls.particleSize]} onValueChange={([val]) => setControls(c => ({...c, particleSize: val}))} disabled={isDisabled} />
+                  </div>
+                  <div className='space-y-2'>
+                    <Label htmlFor='bassSensitivity'>Bass Reactivity</Label>
+                    <Slider id="bassSensitivity" min={0} max={2} step={0.1} value={[controls.bassSensitivity]} onValueChange={([val]) => setControls(c => ({...c, bassSensitivity: val}))} disabled={isDisabled} />
+                  </div>
+                  <div className='space-y-2'>
+                    <Label htmlFor='trebleSensitivity'>Treble Reactivity</Label>
+                    <Slider id="trebleSensitivity" min={0} max={2} step={0.1} value={[controls.trebleSensitivity]} onValueChange={([val]) => setControls(c => ({...c, trebleSensitivity: val}))} disabled={isDisabled} />
+                  </div>
+                   <div className='space-y-2'>
+                    <Label htmlFor='rotationSpeed'>Rotation Speed</Label>
+                    <Slider id="rotationSpeed" min={0} max={2} step={0.1} value={[controls.rotationSpeed]} onValueChange={([val]) => setControls(c => ({...c, rotationSpeed: val}))} disabled={isDisabled} />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </ScrollArea>
         
         {audioSrc && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Music className="w-4 h-4" />
-              <span className="truncate flex-1">{fileName}</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <Button onClick={togglePlay} size="icon" className="rounded-full w-14 h-14" disabled={isDisabled || !fileName}>
-                {isPlaying ? <Pause size={24} /> : <Play size={24} className="ml-1" />}
-              </Button>
-              <div className="w-full flex flex-col gap-2">
-                <Slider value={[progress * 100]} onValueChange={handleSeek} disabled={isDisabled || !fileName}/>
-              </div>
-            </div>
-          
-            <div className="flex items-center gap-2">
-                <span className="text-muted-foreground">Vibe:</span>
-                {isLoading ? (
-                    <Loader2 className="animate-spin" />
-                ) : (
-                    <Badge variant="secondary" className="capitalize text-base px-3 py-1 bg-accent/20 text-accent-foreground border-accent">{mood}</Badge>
-                )}
-            </div>
-            
-            <div className="space-y-4 pt-2">
-              <div className='space-y-2'>
-                <Label htmlFor='particleSize'>Particle Size</Label>
-                <Slider id="particleSize" min={0.1} max={2} step={0.1} value={[controls.particleSize]} onValueChange={([val]) => setControls(c => ({...c, particleSize: val}))} disabled={isDisabled} />
-              </div>
-              <div className='space-y-2'>
-                <Label htmlFor='bassSensitivity'>Bass Reactivity</Label>
-                <Slider id="bassSensitivity" min={0} max={2} step={0.1} value={[controls.bassSensitivity]} onValueChange={([val]) => setControls(c => ({...c, bassSensitivity: val}))} disabled={isDisabled} />
-              </div>
-              <div className='space-y-2'>
-                <Label htmlFor='trebleSensitivity'>Treble Reactivity</Label>
-                <Slider id="trebleSensitivity" min={0} max={2} step={0.1} value={[controls.trebleSensitivity]} onValueChange={([val]) => setControls(c => ({...c, trebleSensitivity: val}))} disabled={isDisabled} />
-              </div>
-               <div className='space-y-2'>
-                <Label htmlFor='rotationSpeed'>Rotation Speed</Label>
-                <Slider id="rotationSpeed" min={0} max={2} step={0.1} value={[controls.rotationSpeed]} onValueChange={([val]) => setControls(c => ({...c, rotationSpeed: val}))} disabled={isDisabled} />
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="flex-grow" />
-
-        {audioSrc && (
-          <div className="space-y-3 pt-2">
+          <div className="mt-auto pt-4 space-y-3">
             <h3 className="text-lg font-semibold">Export & Share</h3>
             <div className="grid grid-cols-2 gap-2">
                <DropdownMenu>
