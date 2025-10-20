@@ -68,8 +68,8 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       if (!buffer) return;
 
       // Use an offline context to analyze without playing
-      // CORRECT FIX: Cap the number of channels directly in the constructor call.
-      const offlineContext = new Tone.OfflineContext(buffer.duration, Tone.context.sampleRate, Math.min(buffer.numberOfChannels, 2));
+      // CORRECT FIX: Hardcode the number of channels to a safe value like 2 (stereo).
+      const offlineContext = new Tone.OfflineContext(buffer.duration, Tone.context.sampleRate, 2);
       const offlinePlayer = new Tone.Player(buffer);
       const fft = new Tone.FFT({ size: 2048, context: offlineContext.rawContext as any });
       offlinePlayer.connect(fft);
