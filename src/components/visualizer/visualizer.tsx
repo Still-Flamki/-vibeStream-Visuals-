@@ -184,7 +184,7 @@ export default function Visualizer() {
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="mood">Mood-Based</SelectItem>
-                            <SelectItem value="multicolor">Multicolor</SelectItem>
+                            <SelectItem value="rainbow_shift">Rainbow Shift</SelectItem>
                             <SelectItem value="crimson">Crimson</SelectItem>
                             <SelectItem value="ocean">Ocean</SelectItem>
                             <SelectItem value="lime">Lime</SelectItem>

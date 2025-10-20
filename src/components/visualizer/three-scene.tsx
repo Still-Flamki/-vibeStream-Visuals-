@@ -1,5 +1,6 @@
 
 
+
 "use client";
 
 import React, { useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
@@ -291,7 +292,7 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
                     const mixFactor = (iy / 100 + 1) / 2;
                     color = c1.clone().lerp(c2, isNaN(mixFactor) ? 0.5 : mixFactor);
                     break;
-                case 'multicolor':
+                case 'rainbow_shift':
                     const hue = (time * 0.1 + ix * 0.01 + iy * 0.01) % 1;
                     color = new THREE.Color().setHSL(hue, 1, 0.5);
                     break;
