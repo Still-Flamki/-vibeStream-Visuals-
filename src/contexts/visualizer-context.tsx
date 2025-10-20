@@ -37,11 +37,32 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   const animationFrameId = useRef<number>();
 
   useEffect(() => {
+    // Initialize Tone.js objects
     analyser.current = new Tone.Analyser('fft', 2048);
     player.current = new Tone.Player().chain(analyser.current, Tone.Destination);
-    player.current.sync().start(0);
+    
+    // This is crucial: the player must be synced to the Transport
+    player.current.sync();
+
+    // Set up the progress loop
+    Tone.Transport.scheduleRepeat(time => {
+      if (player.current && player.current.loaded) {
+        const currentProgress = Tone.Transport.progress;
+        if (isFinite(currentProgress)) {
+            setProgress(currentProgress);
+            if (currentProgress >= 1) {
+                // When the song ends
+                Tone.Transport.stop();
+                setIsPlaying(false);
+                setProgress(1);
+            }
+        }
+      }
+    }, "0.1s");
+
 
     return () => {
+      // Clean up on unmount
       if (animationFrameId.current) {
         cancelAnimationFrame(animationFrameId.current);
       }
@@ -52,52 +73,31 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     };
   }, []);
   
-  const updateProgress = useCallback(() => {
-    if (player.current?.state === "started" && player.current.buffer.duration > 0) {
-      const currentProgress = (Tone.Transport.seconds / player.current.buffer.duration);
-      if (isFinite(currentProgress)) {
-        setProgress(currentProgress);
-        if (currentProgress >= 1) {
-          setIsPlaying(false);
-          Tone.Transport.stop();
-          setProgress(1); 
-          if (animationFrameId.current) {
-            cancelAnimationFrame(animationFrameId.current);
-          }
-          return;
-        }
-      }
-    }
-    animationFrameId.current = requestAnimationFrame(updateProgress);
-  }, []);
-
   const analyzeAndSetMood = useCallback(async () => {
     if (!analyser.current || !player.current || !player.current.loaded) return;
     
-    const wasPlaying = Tone.Transport.state === 'started';
-    const originalTime = Tone.Transport.seconds;
-    
-    if (wasPlaying) {
-        Tone.Transport.pause();
-    }
-
     try {
+        const wasPlaying = Tone.Transport.state === 'started';
+        const originalTime = Tone.Transport.seconds;
+        if(wasPlaying) Tone.Transport.pause();
+        
         await Tone.start();
         
-        // Temporarily mute, seek to middle, play a short snippet, then restore.
-        player.current.mute = true;
-        const middleTime = player.current.buffer.duration / 2;
-        player.current.seek(middleTime);
-        player.current.start(Tone.now());
+        // This process was flawed and could cause issues.
+        // We will do a simpler analysis based on the whole buffer.
+        const buffer = player.current.buffer.get();
+        if (!buffer) return;
+
+        // Simplified analysis: average volume as a proxy for energy.
+        // This is a placeholder for a more complex frequency analysis to avoid playback issues.
+        const fft = new Tone.FFT(2048);
+        player.current.connect(fft);
+        await player.current.load(player.current.buffer.url); // Reload to ensure buffer is available for analysis
         
-        // Wait for analysis
-        await new Promise(res => setTimeout(res, 300));
-        const frequencyData = analyser.current.getValue();
-        player.current.stop();
-        player.current.mute = false;
-        
+        const frequencyData = fft.getValue();
+
         if (frequencyData instanceof Float32Array) {
-            const fftSize = analyser.current.size;
+            const fftSize = fft.size;
             const bassEndIndex = Math.floor(250 / (Tone.context.sampleRate / fftSize));
             const midEndIndex = Math.floor(4000 / (Tone.context.sampleRate / fftSize));
             
@@ -118,20 +118,18 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
             setMood(newMood);
             toast({ title: "Mood Detected", description: `The vibe is ${newMood}!` });
         }
+
+        fft.dispose();
+        player.current.disconnect(fft);
+        if(wasPlaying) Tone.Transport.start(undefined, originalTime);
+
+
     } catch (error) {
       console.error("Error analyzing mood:", error);
       const moods: Mood[] = ['happy', 'dark', 'chill', 'energetic'];
       const randomMood = moods[Math.floor(Math.random() * moods.length)];
       setMood(randomMood);
-    } finally {
-        if (player.current) {
-            player.current.stop();
-            Tone.Transport.seconds = originalTime;
-            if (wasPlaying) {
-                Tone.Transport.start(undefined, originalTime);
-            }
-        }
-    }
+    } 
   }, [toast]);
   
   const loadAudio = useCallback(async (url: string, name?: string) => {
@@ -140,20 +138,24 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     setAudioSrc(null);
     setFileName(null);
     
+    // Stop any current playback and reset state
     if (Tone.Transport.state === 'started') {
         Tone.Transport.stop();
-        if (animationFrameId.current) {
-            cancelAnimationFrame(animationFrameId.current);
-        }
     }
     setIsPlaying(false);
     setProgress(0);
     Tone.Transport.seconds = 0;
 
     try {
+      // Load the audio file into the player
       await player.current.load(url);
       setAudioSrc(url);
       setFileName(name || url.split('/').pop() || "Audio Track");
+      
+      // Start the Transport but paused at the beginning
+      Tone.Transport.stop(); 
+      Tone.Transport.seconds = 0;
+      
       setIsLoading(false);
       await analyzeAndSetMood();
     } catch(err) {
@@ -186,19 +188,16 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     if (Tone.Transport.state === 'started') {
       Tone.Transport.pause();
       setIsPlaying(false);
-      if (animationFrameId.current) {
-        cancelAnimationFrame(animationFrameId.current);
-      }
     } else {
-       if (progress >= 1) { // If at the end, restart from 0
+      if (progress >= 1) { // If at the end, restart from 0
         Tone.Transport.seconds = 0;
         setProgress(0);
       }
       Tone.Transport.start();
+      player.current.start(); // Ensure player starts with transport
       setIsPlaying(true);
-      animationFrameId.current = requestAnimationFrame(updateProgress);
     }
-  }, [progress, updateProgress]);
+  }, [progress]);
 
 
   const seek = useCallback((newProgress: number) => {
