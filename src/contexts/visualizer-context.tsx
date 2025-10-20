@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, useRef, useEffect, useCallback, type ReactNode } from 'react';
@@ -31,31 +32,45 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
   const player = useRef<Tone.Player | null>(null);
   const analyser = useRef<Tone.Analyser | null>(null);
+  const animationFrameId = useRef<number>();
 
   useEffect(() => {
+    // Initialize Tone.js components
     player.current = new Tone.Player().toDestination();
     player.current.connect(new Tone.Limiter(-6).toDestination());
     analyser.current = new Tone.Analyser('fft', 2048);
     player.current.connect(analyser.current);
 
-    const progressLoop = new Tone.Loop(time => {
-      if (player.current?.state === "started" && player.current.buffer.duration > 0) {
-        const currentProgress = player.current.progress;
+    // Stop and clean up on component unmount
+    return () => {
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+      }
+      Tone.Transport.stop();
+      Tone.Transport.cancel();
+      player.current?.dispose();
+      analyser.current?.dispose();
+    };
+  }, []);
+
+  const updateProgress = useCallback(() => {
+    if (player.current?.state === "started" && player.current.buffer.duration > 0) {
+      const currentProgress = player.current.progress;
+      if (isFinite(currentProgress)) {
         setProgress(currentProgress);
         if (currentProgress >= 1) {
           setIsPlaying(false);
           player.current.stop();
           Tone.Transport.stop();
           setProgress(0);
+          if (animationFrameId.current) {
+            cancelAnimationFrame(animationFrameId.current);
+          }
+          return; // Stop the loop
         }
       }
-    }, "16n").start(0);
-
-    return () => {
-      progressLoop.dispose();
-      player.current?.dispose();
-      analyser.current?.dispose();
     }
+    animationFrameId.current = requestAnimationFrame(updateProgress);
   }, []);
 
   const analyzeAndSetMood = useCallback(async () => {
@@ -92,12 +107,18 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
         const mid = frequencyData.slice(bassEndIndex, midEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
         const treble = frequencyData.slice(midEndIndex).reduce((acc, v) => acc + Math.abs(v), 0);
         
+        const total = bass + mid + treble;
+        const bassRatio = bass / total;
+        const midRatio = mid / total;
+        const trebleRatio = treble / total;
+
         let newMood: Mood;
-        if (bass > mid && bass > treble) {
+
+        if (bassRatio > 0.4) {
           newMood = 'dark';
-        } else if (treble > bass && treble > mid) {
+        } else if (trebleRatio > 0.35) {
           newMood = 'energetic';
-        } else if (mid > bass && mid > treble) {
+        } else if (midRatio > 0.4) {
           newMood = 'happy';
         } else {
           newMood = 'chill';
@@ -137,6 +158,9 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
     if (Tone.Transport.state === 'started') {
       Tone.Transport.stop();
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+      }
     }
     setIsPlaying(false);
     setProgress(0);
@@ -171,22 +195,34 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     if (isPlaying) {
       Tone.Transport.pause();
       setIsPlaying(false);
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+      }
     } else {
       await Tone.start();
-      if (player.current.progress >= 1) { 
+      
+      const currentProgress = player.current.progress;
+      if (currentProgress >= 1 || !isFinite(currentProgress)) { 
           player.current.seek(0);
           setProgress(0);
       }
-      player.current.start(undefined, player.current.progress * player.current.buffer.duration);
-      Tone.Transport.start();
-      setIsPlaying(true);
+      
+      const startTime = player.current.progress * player.current.buffer.duration;
+      if (isFinite(startTime)) {
+        player.current.start(undefined, startTime);
+        Tone.Transport.start();
+        setIsPlaying(true);
+        animationFrameId.current = requestAnimationFrame(updateProgress);
+      } else {
+        console.error("Cannot start playback, invalid start time.");
+      }
     }
-  }, [isPlaying]);
+  }, [isPlaying, updateProgress]);
 
   const seek = useCallback((progress: number) => {
     if (player.current && player.current.loaded) {
       const duration = player.current.buffer.duration;
-      if(isFinite(duration)) {
+      if(isFinite(duration) && isFinite(progress)) {
         const newTime = duration * progress;
         if (isFinite(newTime)) {
           player.current.seek(newTime);
