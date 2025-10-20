@@ -142,7 +142,6 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       player.current.toDestination();
       await Tone.loaded();
 
-
     } catch(err) {
       console.error("Error loading audio:", err);
       toast({ variant: 'destructive', title: "Audio Error", description: "Failed to load audio. The file format may be unsupported or the URL may be invalid/protected by CORS." });
@@ -167,23 +166,38 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
   const updateProgress = useCallback(() => {
     if (player.current && player.current.loaded && Tone.Transport.state === 'started') {
-      const currentProgress = Tone.Transport.seconds / player.current.buffer.duration;
-      if (isFinite(currentProgress) && currentProgress < 1) {
-        setProgress(currentProgress);
-      } else {
-        // This handles both reaching the end and potential inaccuracies
-        setProgress(1);
-        setIsPlaying(false);
-        Tone.Transport.stop();
-        if (animationFrameId.current) {
-          cancelAnimationFrame(animationFrameId.current);
+        const currentProgress = Tone.Transport.seconds / player.current.buffer.duration;
+        if (isFinite(currentProgress)) {
+            setProgress(Math.min(currentProgress, 1));
         }
-        return; // Stop requesting new frames
+        
+        // Check if playback is effectively over
+        if (currentProgress >= 1) {
+            // This doesn't stop the transport, just the animation loop requests
+            // The transport will be stopped by the 'stop' event on the player or scheduled event
+            setIsPlaying(false);
+            setProgress(1);
+            if (animationFrameId.current) {
+                cancelAnimationFrame(animationFrameId.current);
+            }
+            return;
+        }
+
+        animationFrameId.current = requestAnimationFrame(updateProgress);
+    }
+}, []);
+  
+  const seek = useCallback((newProgress: number) => {
+    if (player.current && player.current.loaded) {
+      const duration = player.current.buffer.duration;
+      if(isFinite(duration) && isFinite(newProgress) && newProgress >= 0 && newProgress <= 1) {
+        const newTime = duration * newProgress;
+        Tone.Transport.seconds = newTime;
+        setProgress(newProgress);
       }
-      animationFrameId.current = requestAnimationFrame(updateProgress);
     }
   }, []);
-  
+
   const togglePlay = useCallback(async () => {
     if (!player.current || !player.current.loaded) return;
     
@@ -196,25 +210,18 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
         cancelAnimationFrame(animationFrameId.current);
       }
     } else {
+       // If the track is at the end, restart it.
+        if (progress >= 1) {
+          seek(0);
+        }
        if (player.current.state === 'stopped') {
             player.current.sync().start(0);
-        }
+       }
       Tone.Transport.start();
       setIsPlaying(true);
       animationFrameId.current = requestAnimationFrame(updateProgress);
     }
-  }, [updateProgress]);
-
-  const seek = useCallback((newProgress: number) => {
-    if (player.current && player.current.loaded) {
-      const duration = player.current.buffer.duration;
-      if(isFinite(duration) && isFinite(newProgress) && newProgress >= 0 && newProgress <= 1) {
-        const newTime = duration * newProgress;
-        Tone.Transport.seconds = newTime;
-        setProgress(newProgress);
-      }
-    }
-  }, []);
+  }, [updateProgress, progress, seek]);
 
   const startRecording = (threeSceneRef: React.RefObject<ThreeSceneHandle>, onStop?: () => void) => {
     const canvas = threeSceneRef.current?.getCanvas();
@@ -298,18 +305,18 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     setIsRendering(true);
     toast({ title: 'Render Started', description: 'The video will be downloaded automatically when finished.' });
     
-    // Stop any current playback
-    if (Tone.Transport.state === 'started') {
+    // Ensure transport is stopped and cancelled before starting
+    if (Tone.Transport.state !== 'stopped') {
         Tone.Transport.stop();
-        setIsPlaying(false);
+        Tone.Transport.cancel();
     }
+    setIsPlaying(false);
 
     // Seek to beginning
     seek(0);
     
-    // Start recording with a callback to reset the rendering state
     const recordingStarted = startRecording(threeSceneRef, () => {
-        setIsRendering(false);
+        setIsRendering(false); // This will be called on 'stop'
         toast({ title: 'Render Complete!', description: 'Your 4K video download has started.' });
     });
 
@@ -320,14 +327,17 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     
     // Schedule stopping the recording at the end of the track
     const duration = player.current.buffer.duration;
-    Tone.Transport.scheduleOnce(() => {
+    Tone.Transport.scheduleOnce((time) => {
         stopRecording();
-        // The onStop callback will handle the state change and download
+        Tone.Transport.stop(time);
+        setIsPlaying(false);
     }, duration);
 
     // Start playback
     await Tone.start();
-    player.current.sync().start(0);
+    if (player.current.state === 'stopped') {
+      player.current.sync().start(0);
+    }
     Tone.Transport.start();
     setIsPlaying(true);
     animationFrameId.current = requestAnimationFrame(updateProgress);
