@@ -45,13 +45,13 @@ export default function HomePage() {
       <Header />
       <main className="flex-grow">
         {/* Hero Section */}
-        <section className="container mx-auto grid grid-cols-1 md:grid-cols-2 items-center gap-12 py-16 md:py-24">
-          <div className="flex flex-col items-start text-left">
+        <section className="container mx-auto text-center py-16 md:py-24">
+          <div className="flex flex-col items-center">
             <VibeStreamIcon className="h-24 w-24 text-primary mb-6" />
-            <h1 className="text-4xl md:text-6xl font-bold font-headline tracking-tight">
+            <h1 className="text-4xl md:text-6xl font-bold font-headline tracking-tight max-w-3xl">
               See Your Sound. Feel the Flow.
             </h1>
-            <p className="mt-6 max-w-xl text-lg md:text-xl text-muted-foreground">
+            <p className="mt-6 max-w-2xl text-lg md:text-xl text-muted-foreground">
               VibeStream turns any audio into a mesmerizing, 3D interactive visual experience. Create, customize, and share your unique audiovisual art with the world.
             </p>
             <div className="mt-10">
@@ -62,7 +62,7 @@ export default function HomePage() {
               </Button>
             </div>
           </div>
-          <div className="relative aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl shadow-primary/20 border border-primary/20">
+          <div className="relative aspect-[16/9] rounded-2xl overflow-hidden shadow-2xl shadow-primary/20 border border-primary/20 mt-16 max-w-5xl mx-auto">
               <Image 
                 src={heroImage.imageUrl}
                 alt={heroImage.description}
@@ -81,7 +81,7 @@ export default function HomePage() {
                     <h2 className="text-4xl font-bold font-headline">A New Dimension of Audio</h2>
                     <p className="text-muted-foreground mt-4 max-w-2xl mx-auto">VibeStream Visuals isn't just a player; it's an instrument. Explore features designed to bring your music to life.</p>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-16">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-16 max-w-4xl mx-auto">
                     {features.map((feature, index) => (
                     <div key={index} className="flex items-start gap-6">
                         <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
