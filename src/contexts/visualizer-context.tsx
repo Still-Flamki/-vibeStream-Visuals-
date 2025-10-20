@@ -54,7 +54,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [visualizationType, setVisualizationType] = useState<VisualizationType>('sphere_pulse');
-  const [aspectRatio, setAspectRatio] = useState('16:9');
+  const [aspectRatio, setAspectRatio] = useState('2.39:1');
   const [analyserNode, setAnalyserNode] = useState<Tone.Analyser | null>(null);
   const [controls, setControls] = useState<VisualizerControls>({
     particleSize: 0.8,
@@ -113,6 +113,8 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   }, [analyserNode]);
   
   useEffect(() => {
+    // Create the stream destination once and reuse it.
+    streamDestinationRef.current = Tone.context.createMediaStreamDestination();
     return () => cleanup();
   }, [cleanup]);
 
@@ -129,7 +131,9 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   const loadAudio = useCallback(async (url: string, name?: string) => {
     if (isLoading) return;
     
-    cleanup();
+    if (player.current) {
+      cleanup();
+    }
     setIsLoading(true);
 
     try {
@@ -216,9 +220,11 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     if (!isConnected.current) {
       const newAnalyser = new Tone.Analyser('fft', 1024);
       setAnalyserNode(newAnalyser);
-      streamDestinationRef.current = Tone.context.createMediaStreamDestination();
-      player.current.connect(newAnalyser);
-      player.current.connect(streamDestinationRef.current);
+      
+      if(streamDestinationRef.current) {
+        player.current.connect(newAnalyser);
+        player.current.connect(streamDestinationRef.current);
+      }
       player.current.toDestination();
       isConnected.current = true;
     }
