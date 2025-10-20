@@ -192,7 +192,10 @@ export function StudioScene({
         let mesh = objectMeshes.current.get(obj.id);
         if (!mesh) {
             const geometry = new THREE.BoxGeometry(1, 1, 1);
-            const material = new THREE.MeshStandardMaterial({ color: 0x6f42c1 });
+            const material = new THREE.MeshStandardMaterial({ 
+              color: 0x6f42c1,
+              emissive: 0x000000, 
+            });
             mesh = new THREE.Mesh(geometry, material);
             mesh.userData.id = obj.id;
             scene.add(mesh);
@@ -215,9 +218,7 @@ export function StudioScene({
         const material = mesh.material as THREE.MeshStandardMaterial;
         const isSelected = id === selectedObjectId;
         
-        if (material.emissive) {
-            material.emissive.set(isSelected ? 0xaaaa00 : 0x000000);
-        }
+        material.emissive.set(isSelected ? 0xaaaa00 : 0x000000);
     });
 
     if (selectedObjectId && controlsRef.current) {
