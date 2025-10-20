@@ -19,6 +19,9 @@ const presetColors: { [key: string]: THREE.Color } = {
   crimson: new THREE.Color('#DC143C'),
   ocean: new THREE.Color('#0077be'),
   lime: new THREE.Color('#32CD32'),
+  gold: new THREE.Color('#FFD700'),
+  violet: new THREE.Color('#EE82EE'),
+  pink: new THREE.Color('#FF69B4'),
 };
 
 
@@ -183,6 +186,9 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
                 case 'crimson':
                 case 'ocean':
                 case 'lime':
+                case 'gold':
+                case 'violet':
+                case 'pink':
                     color = presetColors[colorMode].clone();
                     break;
             }
@@ -407,4 +413,5 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
 ThreeScene.displayName = 'ThreeScene';
 export default ThreeScene;
 
+    
     

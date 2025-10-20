@@ -168,6 +168,9 @@ export default function Visualizer() {
                             <SelectItem value="crimson">Crimson</SelectItem>
                             <SelectItem value="ocean">Ocean</SelectItem>
                             <SelectItem value="lime">Lime</SelectItem>
+                            <SelectItem value="gold">Gold</SelectItem>
+                            <SelectItem value="violet">Violet</SelectItem>
+                            <SelectItem value="pink">Pink</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -298,3 +301,5 @@ export default function Visualizer() {
     </div>
   );
 }
+
+    
