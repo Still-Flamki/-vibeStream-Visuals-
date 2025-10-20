@@ -81,7 +81,7 @@ export default function ControlsPanel() {
         <CardTitle className="font-headline text-2xl">Controls</CardTitle>
         <CardDescription>Load your audio and shape the visuals.</CardDescription>
       </CardHeader>
-      <CardContent className="flex-grow flex flex-col gap-6">
+      <CardContent className="flex-grow flex flex-col gap-4">
         <Tabs defaultValue="upload">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="upload"><Upload className="mr-2" /> Upload</TabsTrigger>
@@ -178,7 +178,7 @@ export default function ControlsPanel() {
 
         </div>
 
-        <div className="space-y-2 flex-grow flex flex-col justify-end">
+        <div className="space-y-2">
           <h3 className="text-lg font-semibold">Export & Share</h3>
           <div className="grid grid-cols-2 gap-2">
             <Button variant="outline" onClick={() => handleExport('MP4')}><Download className="mr-2"/> MP4</Button>
