@@ -124,7 +124,8 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
 
         if (isPlaying) {
             switch (visualizationType) {
-                case 'sphere_pulse': {
+                case 'sphere_pulse':
+                case 'digital_earth': {
                     const r = Math.sqrt(ix*ix + iy*iy + iz*iz);
                     const displacement = freqValue * bassBoost * 5;
                     const newRadius = r + displacement;
@@ -134,6 +135,28 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
                         y = iy * ratio;
                         z = iz * ratio;
                     }
+                    break;
+                }
+                case 'heartbeat': {
+                    const r = Math.sqrt(ix*ix + iy*iy + iz*iz);
+                    const beat = Math.pow(Math.max(0, Math.sin(time * Math.PI * 2 * (60/120) + r * 0.1)), 10) * bassBoost * 20;
+                    const displacement = freqValue * bassBoost * 2 + beat;
+                    const newRadius = r + displacement;
+                     if (r > 0 && isFinite(newRadius)) {
+                        const ratio = newRadius / r;
+                        x = ix * ratio;
+                        y = iy * ratio;
+                        z = iz * ratio;
+                    }
+                    break;
+                }
+                case 'galaxy': {
+                    const r = Math.sqrt(ix*ix + iy*iy);
+                    const angle = Math.atan2(iy, ix);
+                    const displacement = freqValue * bassBoost * 0.1;
+                    x = r * Math.cos(angle + displacement);
+                    y = r * Math.sin(angle + displacement);
+                    z = iz + Math.sin(r * 0.1 + time) * trebleBoost;
                     break;
                 }
                 case 'warp_drive': {
@@ -349,6 +372,61 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
     let positions: Float32Array;
 
     switch (visualizationType) {
+        case 'digital_earth': {
+            particleCount = 10000;
+            positions = new Float32Array(particleCount * 3);
+            const radius = 50;
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                const phi = Math.acos(-1 + (2 * i) / particleCount);
+                const theta = Math.sqrt(particleCount * Math.PI) * phi;
+
+                const isLand = (Math.sin(phi * 5) * Math.cos(theta * 7) + Math.sin(phi * 3) * Math.sin(theta * 5)) > 0.3;
+                if (isLand) {
+                    positions[i3] = radius * Math.cos(theta) * Math.sin(phi);
+                    positions[i3 + 1] = radius * Math.sin(theta) * Math.sin(phi);
+                    positions[i3 + 2] = radius * Math.cos(phi);
+                } else {
+                    // Place non-land points far away or skip them
+                    positions[i3] = Infinity;
+                    positions[i3+1] = Infinity;
+                    positions[i3+2] = Infinity;
+                }
+            }
+            break;
+        }
+        case 'heartbeat': {
+            particleCount = 5000;
+            positions = new Float32Array(particleCount * 3);
+             for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                const t = Math.random() * Math.PI * 2;
+                const x = 16 * Math.pow(Math.sin(t), 3) * 3;
+                const y = (13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t)) * 3;
+                const z = (Math.random() - 0.5) * 10;
+                positions[i3] = x;
+                positions[i3+1] = y;
+                positions[i3+2] = z;
+            }
+            break;
+        }
+        case 'galaxy':
+            particleCount = 15000;
+            positions = new Float32Array(particleCount * 3);
+            const arms = 4;
+            const armAngle = 2 * Math.PI / arms;
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                const r = Math.random() * 80;
+                const spin = r * 0.1;
+                const armIndex = Math.floor(Math.random() * arms);
+                const angle = armIndex * armAngle + Math.random() * 0.2 - 0.1 + spin;
+                
+                positions[i3] = Math.cos(angle) * r;
+                positions[i3+1] = Math.sin(angle) * r;
+                positions[i3+2] = (Math.random() - 0.5) * 5;
+            }
+            break;
         case 'sphere_pulse':
             particleCount = 5000;
             positions = new Float32Array(particleCount * 3);
