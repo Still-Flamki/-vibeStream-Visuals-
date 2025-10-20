@@ -37,15 +37,15 @@ const features = [
 ];
 
 export default function HomePage() {
-  const heroImage = placeholderImages[0];
-  const featureImage = placeholderImages[1];
+  const heroImage = placeholderImages.find(p => p.id === 'hero-visual')!;
+  const featureImage = placeholderImages.find(p => p.id === 'feature-export')!;
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <Header />
       <main className="flex-grow">
         {/* Hero Section */}
-        <section className="container mx-auto grid grid-cols-1 md:grid-cols-2 items-center gap-12 py-20 md:py-32">
+        <section className="container mx-auto grid grid-cols-1 md:grid-cols-2 items-center gap-12 py-16 md:py-24">
           <div className="flex flex-col items-start text-left">
             <VibeStreamIcon className="h-24 w-24 text-primary mb-6" />
             <h1 className="text-4xl md:text-6xl font-bold font-headline tracking-tight">
@@ -69,12 +69,13 @@ export default function HomePage() {
                 fill
                 className="object-cover"
                 data-ai-hint={heroImage.imageHint}
+                priority
               />
           </div>
         </section>
 
         {/* Features Section */}
-        <section className="bg-secondary/50 py-24">
+        <section className="bg-secondary/50 py-16 md:py-24">
             <div className="container mx-auto">
                 <div className="text-center mb-16">
                     <h2 className="text-4xl font-bold font-headline">A New Dimension of Audio</h2>
@@ -97,7 +98,7 @@ export default function HomePage() {
         </section>
 
         {/* CTA Section */}
-        <section className="container mx-auto text-center py-24">
+        <section className="container mx-auto text-center py-16 md:py-24">
              <h2 className="text-4xl font-bold font-headline">Ready to Create?</h2>
              <p className="mt-4 max-w-xl mx-auto text-lg text-muted-foreground">
                 Your next masterpiece is just a click away. Launch the visualizer and start your audiovisual journey.
