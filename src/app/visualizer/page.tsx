@@ -10,7 +10,7 @@ export default function VisualizerPage() {
     <VisualizerProvider>
       <div className="flex flex-col min-h-screen bg-background text-foreground">
         <Header />
-        <main className="flex-grow flex flex-col items-center w-full py-4 px-4 gap-4">
+        <main className="flex-grow flex flex-col items-center w-full py-4 px-4 gap-4 min-h-0">
           <ControlsPanel />
           <Visualizer />
         </main>

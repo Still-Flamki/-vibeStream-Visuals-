@@ -42,7 +42,6 @@ export default function Visualizer() {
     setAspectRatio,
   } = useVisualizer();
   const threeSceneRef = useRef<ThreeSceneHandle>(null);
-  const visualizerContainerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -92,12 +91,9 @@ export default function Visualizer() {
 
   return (
     <div className="w-full flex-grow flex flex-col gap-4 min-h-0 items-center justify-center">
-       <div 
-        className="w-full h-full max-w-full max-h-full flex items-center justify-center"
-        ref={visualizerContainerRef}
-      >
+       <div className="w-full h-full flex items-center justify-center">
         <Card 
-          className="relative rounded-lg overflow-hidden bg-black/50 shadow-2xl shadow-primary/20 w-full h-full"
+          className="relative rounded-lg overflow-hidden bg-black/50 shadow-2xl shadow-primary/20 max-h-full"
           style={{aspectRatio: audioSrc ? aspectRatio : '16 / 9'}}
         >
           <CardContent className="p-0 h-full w-full">
