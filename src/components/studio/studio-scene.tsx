@@ -5,17 +5,22 @@ import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
+type Vector3 = { x: number; y: number; z: number; };
+
 interface StudioSceneProps {
   backgroundColor: string;
-  position: { x: number; y: number; z: number; };
-  rotation: { x: number; y: number; z: number; };
-  scale: { x: number; y: number; z: number; };
+  position: Vector3;
+  setPosition: React.Dispatch<React.SetStateAction<Vector3>>;
+  rotation: Vector3;
+  scale: Vector3;
 }
 
-export function StudioScene({ backgroundColor, position, rotation, scale }: StudioSceneProps) {
+export function StudioScene({ backgroundColor, position, setPosition, rotation, scale }: StudioSceneProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cubeRef = useRef<THREE.Mesh | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
+  const lastPanPosition = useRef<THREE.Vector3>(new THREE.Vector3());
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -41,6 +46,12 @@ export function StudioScene({ backgroundColor, position, rotation, scale }: Stud
     // Controls
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
+    controls.mouseButtons = {
+        LEFT: THREE.MOUSE.ROTATE,
+        MIDDLE: THREE.MOUSE.DOLLY,
+        RIGHT: THREE.MOUSE.PAN
+    };
+    controlsRef.current = controls;
 
     // Lights
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
@@ -61,6 +72,30 @@ export function StudioScene({ backgroundColor, position, rotation, scale }: Stud
     const gridHelper = new THREE.GridHelper(10, 10, 0x444444, 0x444444);
     scene.add(gridHelper);
 
+
+    const handleControlChange = () => {
+        if (!controlsRef.current || !cubeRef.current) return;
+        
+        // This calculates the difference in the pan and applies it to the cube
+        const panDelta = new THREE.Vector3().subVectors(controls.target, lastPanPosition.current);
+        if (panDelta.lengthSq() > 0) { // Check if there was an actual pan
+            cubeRef.current.position.add(panDelta);
+            lastPanPosition.current.copy(controls.target);
+            // Update the state in the parent component
+            setPosition(prev => ({
+                x: cubeRef.current!.position.x,
+                y: cubeRef.current!.position.y,
+                z: cubeRef.current!.position.z,
+            }));
+        }
+    };
+    
+    controls.addEventListener('change', handleControlChange);
+    controls.addEventListener('start', () => {
+        if (controlsRef.current) {
+            lastPanPosition.current.copy(controlsRef.current.target);
+        }
+    });
 
     // Animation loop
     let animationFrameId: number;
@@ -87,6 +122,7 @@ export function StudioScene({ backgroundColor, position, rotation, scale }: Stud
     // Cleanup
     return () => {
       window.removeEventListener('resize', handleResize);
+      controls.removeEventListener('change', handleControlChange);
       cancelAnimationFrame(animationFrameId);
       if (currentMount) {
         currentMount.removeChild(renderer.domElement);
@@ -95,6 +131,7 @@ export function StudioScene({ backgroundColor, position, rotation, scale }: Stud
       geometry.dispose();
       material.dispose();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

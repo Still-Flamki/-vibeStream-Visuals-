@@ -135,6 +135,7 @@ export default function StudioPage() {
               <StudioScene 
                 backgroundColor={backgroundColor}
                 position={position}
+                setPosition={setPosition}
                 rotation={rotation}
                 scale={scale}
               />
