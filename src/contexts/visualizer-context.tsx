@@ -64,7 +64,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       if (!buffer) return;
 
       // Cap the number of channels to a valid range (e.g., 1 to 32, but 2 is safe and common)
-      const numberOfChannels = Math.max(1, Math.min(buffer.numberOfChannels, 2));
+      const numberOfChannels = Math.min(buffer.numberOfChannels, 2);
 
       // Use an offline context to analyze without playing
       const offlineContext = new Tone.OfflineContext(buffer.duration, Tone.context.sampleRate, numberOfChannels);
@@ -117,14 +117,10 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       
       analyser.current = new Tone.Analyser('fft', 2048);
       
-      const newPlayer = await new Promise<Tone.Player>((resolve, reject) => {
-        const p = new Tone.Player(url, () => {
-          p.chain(analyser.current!, Tone.Destination);
-          resolve(p);
-        }).toDestination();
-        p.onerror = (err) => reject(err);
-      });
-
+      const newPlayer = new Tone.Player(url).toDestination();
+      await Tone.loaded();
+      
+      newPlayer.chain(analyser.current, Tone.Destination);
       player.current = newPlayer;
 
       setAudioSrc(url);
@@ -158,11 +154,18 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   const updateProgress = useCallback(() => {
     if (player.current && player.current.loaded && Tone.Transport.state === 'started') {
       const currentProgress = Tone.Transport.seconds / player.current.buffer.duration;
-      if (isFinite(currentProgress)) {
+      if (isFinite(currentProgress) && currentProgress <=1) {
         setProgress(currentProgress);
+      } else if (currentProgress > 1) {
+        setProgress(1);
+        setIsPlaying(false);
+        Tone.Transport.stop();
+        cancelAnimationFrame(animationFrameId.current);
       }
     }
-    animationFrameId.current = requestAnimationFrame(updateProgress);
+    if(Tone.Transport.state === 'started') {
+        animationFrameId.current = requestAnimationFrame(updateProgress);
+    }
   }, []);
   
   const togglePlay = useCallback(async () => {
@@ -175,27 +178,17 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       setIsPlaying(false);
       cancelAnimationFrame(animationFrameId.current);
     } else {
-       if (progress >= 1) { // If at the end, restart
-        player.current.start(undefined, 0);
-      } else {
-        player.current.start(undefined, progress * player.current.buffer.duration);
-      }
       Tone.Transport.start();
       setIsPlaying(true);
       animationFrameId.current = requestAnimationFrame(updateProgress);
     }
-  }, [progress, updateProgress]);
+  }, [updateProgress]);
 
   const seek = useCallback((newProgress: number) => {
     if (player.current && player.current.loaded) {
       const duration = player.current.buffer.duration;
       if(isFinite(duration) && isFinite(newProgress) && newProgress >= 0 && newProgress <= 1) {
         const newTime = duration * newProgress;
-        
-        if (Tone.Transport.state === 'started') {
-            player.current.start(undefined, newTime);
-        }
-        
         Tone.Transport.seconds = newTime;
         setProgress(newProgress);
       }
