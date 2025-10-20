@@ -36,11 +36,10 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Initialize Tone.js components
-    player.current = new Tone.Player().toDestination();
-    player.current.connect(new Tone.Limiter(-6).toDestination());
     analyser.current = new Tone.Analyser('fft', 2048);
+    player.current = new Tone.Player().toDestination();
     player.current.connect(analyser.current);
-
+    
     // Stop and clean up on component unmount
     return () => {
       if (animationFrameId.current) {
@@ -76,13 +75,11 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   const analyzeAndSetMood = useCallback(async () => {
     if (!analyser.current || !player.current || !player.current.loaded) return;
     
-    // We need to play a small snippet to get frequency data
     const wasPlaying = Tone.Transport.state === 'started';
     const originalTime = Tone.Transport.seconds;
     const isMuted = player.current.mute;
 
     try {
-      // Mute, play a snippet from the start, analyze, then revert
       player.current.mute = true;
       if (wasPlaying) {
         Tone.Transport.pause();
@@ -92,7 +89,6 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       player.current.start(Tone.now(), 0);
       Tone.Transport.start();
       
-      // Wait a moment for analysis
       await new Promise(res => setTimeout(res, 300));
 
       const frequencyData = analyser.current.getValue();
@@ -100,7 +96,6 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
       if (frequencyData instanceof Float32Array) {
         const fftSize = analyser.current.size;
-        // Approximate frequency ranges
         const bassEndIndex = Math.floor(250 / (Tone.context.sampleRate / fftSize));
         const midEndIndex = Math.floor(4000 / (Tone.context.sampleRate / fftSize));
         
@@ -131,12 +126,10 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
     } catch (error) {
       console.error("Error analyzing mood:", error);
-      // fallback to random if analysis fails
       const moods: Mood[] = ['happy', 'dark', 'chill', 'energetic'];
       const randomMood = moods[Math.floor(Math.random() * moods.length)];
       setMood(randomMood);
     } finally {
-        // Revert player state
         if (player.current) {
           player.current.stop();
           Tone.Transport.stop();
