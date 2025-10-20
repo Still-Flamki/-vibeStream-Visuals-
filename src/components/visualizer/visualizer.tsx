@@ -47,9 +47,8 @@ export default function Visualizer() {
 
   useEffect(() => {
     const handleResize = () => {
-      if (visualizerContainerRef.current) {
-        const { clientWidth, clientHeight } = visualizerContainerRef.current;
-        threeSceneRef.current?.resize(clientWidth, clientHeight);
+      if (threeSceneRef.current) {
+        threeSceneRef.current.resize();
       }
     };
     window.addEventListener('resize', handleResize);
@@ -92,58 +91,66 @@ export default function Visualizer() {
   const isDisabled = isRecording;
 
   return (
-    <div className="w-full h-full flex flex-col gap-4 min-h-0">
-      <Card ref={visualizerContainerRef} className="flex-grow relative rounded-lg overflow-hidden bg-black/50 shadow-2xl shadow-primary/20">
-        <CardContent className="p-0 h-full w-full">
-          {audioSrc && (
-            <div className="absolute top-4 right-4 z-10 flex gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant={isRecording ? "destructive" : "outline"} size="icon" disabled={!audioSrc} className="bg-card/50 backdrop-blur-sm">
-                      {isRecording 
-                        ? <CircleDot className="text-red-500 animate-pulse" /> 
-                        : <Video />}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem onClick={() => handleRecordClick('720p')} disabled={isRecording}>Record 720p</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleRecordClick('1080p')} disabled={isRecording}>Record 1080p</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleRecordClick('4k')} disabled={isRecording}>Record 4K</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button variant="outline" size="icon" onClick={handleExportGif} disabled={isDisabled || !audioSrc} className="bg-card/50 backdrop-blur-sm">
-                <Download />
-              </Button>
-              <Button variant="outline" size="icon" onClick={handleShare} disabled={isDisabled || !audioSrc} className="bg-card/50 backdrop-blur-sm">
-                <Share2 />
-              </Button>
-            </div>
-          )}
-          
-          {audioSrc ? (
-            <ThreeScene 
-              ref={threeSceneRef}
-              analyserNode={analyser} 
-              isPlaying={isPlaying} 
-              mood={mood} 
-              visualizationType={visualizationType} 
-              controls={controls}
-              aspectRatio={aspectRatio}
-            />
-          ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-card/80 backdrop-blur-sm p-8 text-center border border-primary/20 rounded-lg">
-              <VibeStreamIcon className="h-24 w-24 text-primary animate-pulse" />
-              <h2 className="mt-6 text-2xl font-bold font-headline">Welcome to VibeStream Visuals</h2>
-              <p className="mt-2 text-muted-foreground max-w-md">
-                Upload an audio file or paste a URL to start the experience. Your beats, visualized.
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+    <div className="w-full h-full flex flex-col gap-4 min-h-0 items-center justify-center">
+       <div 
+        className="w-full h-full max-w-full max-h-full flex items-center justify-center"
+        ref={visualizerContainerRef}
+      >
+        <Card 
+          className="relative rounded-lg overflow-hidden bg-black/50 shadow-2xl shadow-primary/20 w-full h-full"
+          style={{aspectRatio: audioSrc ? aspectRatio : '16 / 9'}}
+        >
+          <CardContent className="p-0 h-full w-full">
+            {audioSrc && (
+              <div className="absolute top-4 right-4 z-10 flex gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant={isRecording ? "destructive" : "outline"} size="icon" disabled={!audioSrc} className="bg-card/50 backdrop-blur-sm">
+                        {isRecording 
+                          ? <CircleDot className="text-red-500 animate-pulse" /> 
+                          : <Video />}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={() => handleRecordClick('720p')} disabled={isRecording}>Record 720p</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleRecordClick('1080p')} disabled={isRecording}>Record 1080p</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleRecordClick('4k')} disabled={isRecording}>Record 4K</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button variant="outline" size="icon" onClick={handleExportGif} disabled={isDisabled || !audioSrc} className="bg-card/50 backdrop-blur-sm">
+                  <Download />
+                </Button>
+                <Button variant="outline" size="icon" onClick={handleShare} disabled={isDisabled || !audioSrc} className="bg-card/50 backdrop-blur-sm">
+                  <Share2 />
+                </Button>
+              </div>
+            )}
+            
+            {audioSrc ? (
+              <ThreeScene 
+                ref={threeSceneRef}
+                analyserNode={analyser} 
+                isPlaying={isPlaying} 
+                mood={mood} 
+                visualizationType={visualizationType} 
+                controls={controls}
+                aspectRatio={aspectRatio}
+              />
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center bg-card/80 backdrop-blur-sm p-8 text-center border border-primary/20 rounded-lg">
+                <VibeStreamIcon className="h-24 w-24 text-primary animate-pulse" />
+                <h2 className="mt-6 text-2xl font-bold font-headline">Welcome to VibeStream Visuals</h2>
+                <p className="mt-2 text-muted-foreground max-w-md">
+                  Upload an audio file or paste a URL to start the experience. Your beats, visualized.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
       
       {audioSrc && (
-          <Card className="bg-card/50 backdrop-blur-sm">
+          <Card className="bg-card/50 backdrop-blur-sm w-full max-w-7xl">
             <CardContent className="p-4 flex items-center gap-6">
               <div className="flex-grow grid grid-cols-1 md:grid-cols-4 gap-6 items-center">
                   <div className='space-y-3 md:col-span-1'>

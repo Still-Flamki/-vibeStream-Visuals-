@@ -18,7 +18,7 @@ const moodColors: Record<Mood, { c1: THREE.Color; c2: THREE.Color }> = {
 
 export interface ThreeSceneHandle {
   getCanvas: () => HTMLCanvasElement | null;
-  resize: (width?: number, height?: number) => void;
+  resize: () => void;
   setAspectRatio: (aspect: number) => void;
 }
 
@@ -43,45 +43,20 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
     getCanvas: () => {
       return rendererRef.current?.domElement || null;
     },
-    resize: (width, height) => {
+    resize: () => {
       if (rendererRef.current && cameraRef.current && mountRef.current) {
-        const targetWidth = width || mountRef.current.clientWidth;
-        const targetHeight = height || mountRef.current.clientHeight;
-        
-        rendererRef.current.setSize(targetWidth, targetHeight);
-        
-        const currentAspect = latestProps.current.aspectRatio;
-        cameraRef.current.aspect = currentAspect;
+        const { clientWidth, clientHeight } = mountRef.current;
+        rendererRef.current.setSize(clientWidth, clientHeight);
+        cameraRef.current.aspect = clientWidth / clientHeight;
         cameraRef.current.updateProjectionMatrix();
-        
-        const containerAspect = targetWidth / targetHeight;
-
-        let scissorWidth, scissorHeight, scissorX, scissorY;
-
-        if (containerAspect > currentAspect) {
-          // container is wider, use full height
-          scissorHeight = targetHeight;
-          scissorWidth = targetHeight * currentAspect;
-          scissorX = (targetWidth - scissorWidth) / 2;
-          scissorY = 0;
-        } else {
-          // container is taller, use full width
-          scissorWidth = targetWidth;
-          scissorHeight = targetWidth / currentAspect;
-          scissorY = (targetHeight - scissorHeight) / 2;
-          scissorX = 0;
-        }
-        
-        rendererRef.current.setScissor(scissorX, scissorY, scissorWidth, scissorHeight);
       }
     },
     setAspectRatio: (aspect: number) => {
-      if (cameraRef.current && mountRef.current && rendererRef.current) {
-        cameraRef.current.aspect = aspect;
-        cameraRef.current.updateProjectionMatrix();
-        const { clientWidth, clientHeight } = mountRef.current;
-        ref.current?.resize(clientWidth, clientHeight);
-      }
+       if (cameraRef.current && mountRef.current) {
+          cameraRef.current.aspect = aspect;
+          cameraRef.current.updateProjectionMatrix();
+          ref.current?.resize();
+       }
     }
   }));
 
@@ -104,7 +79,6 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
     renderer.setSize(currentMount.clientWidth, currentMount.clientHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setScissorTest(true);
     rendererRef.current = renderer;
     currentMount.appendChild(renderer.domElement);
 
