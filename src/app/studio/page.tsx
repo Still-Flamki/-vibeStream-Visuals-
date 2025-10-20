@@ -3,7 +3,7 @@
 
 import { Sidebar, SidebarContent, SidebarInset, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { Card, CardContent } from '@/components/ui/card';
-import { SlidersHorizontal, Box, Layers, Camera, Move3d, Rotate3d, Scale3d } from 'lucide-react';
+import { SlidersHorizontal, Box, Layers, Camera, Move3d, Rotate3d, Scale3d, PlusCircle } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { StudioScene } from '@/components/studio/studio-scene';
 import { useState } from 'react';
@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
 
 type Vector3 = {
     x: number;
@@ -26,6 +27,8 @@ type SceneObject = {
     scale: Vector3;
 };
 
+let objectCount = 1;
+
 export default function StudioPage() {
   const [backgroundColor, setBackgroundColor] = useState('#1a1a1a');
 
@@ -35,7 +38,7 @@ export default function StudioPage() {
         name: 'Default Cube',
         position: { x: 0, y: 0.5, z: 0 },
         rotation: { x: 0, y: 0, z: 0 },
-        scale: { x: 1.5, y: 1.5, z: 1.5 },
+        scale: { x: 1, y: 1, z: 1 },
     }
   });
 
@@ -57,6 +60,20 @@ export default function StudioPage() {
       }
   };
 
+  const handleAddObject = () => {
+    objectCount++;
+    const newId = `cube-${objectCount}`;
+    const newObject: SceneObject = {
+        id: newId,
+        name: `Cube ${objectCount}`,
+        position: { x: (Math.random() - 0.5) * 10, y: 0.5, z: (Math.random() - 0.5) * 10 },
+        rotation: { x: 0, y: 0, z: 0 },
+        scale: { x: 1, y: 1, z: 1 },
+    };
+    setObjects(prev => ({ ...prev, [newId]: newObject }));
+    setSelectedObjectId(newId);
+  };
+
   return (
     <>
       <Sidebar>
@@ -70,6 +87,12 @@ export default function StudioPage() {
                           </div>
                       </AccordionTrigger>
                       <AccordionContent>
+                        <div className="px-2 pb-2">
+                           <Button variant="outline" size="sm" className="w-full" onClick={handleAddObject}>
+                              <PlusCircle className="mr-2 h-4 w-4" />
+                              Add Object
+                           </Button>
+                        </div>
                          <SidebarMenu>
                              {Object.values(objects).map(obj => (
                                 <SidebarMenuItem key={obj.id}>
@@ -115,6 +138,7 @@ export default function StudioPage() {
                             {selectedObject && (
                             <>
                                 <Separator />
+                                <p className="font-medium text-sm text-center">{selectedObject.name}</p>
                                 {/* Position */}
                                 <div className="space-y-3">
                                     <div className="flex items-center gap-2 font-medium">

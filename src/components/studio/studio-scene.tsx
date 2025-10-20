@@ -125,27 +125,32 @@ export function StudioScene({
         }
     };
     
-    const handlePan = () => {
+    const handlePanEnd = () => {
         if (!controlsRef.current || !selectedObjectId) return;
         const targetMesh = objectMeshes.current.get(selectedObjectId);
         if (!targetMesh) return;
-
+    
         const newPosition = controlsRef.current.target;
-        onObjectChange(selectedObjectId, { position: { x: newPosition.x, y: newPosition.y, z: newPosition.z } });
+        
+        // Only update if there's a meaningful change to avoid unnecessary re-renders
+        const oldPosition = targetMesh.position;
+        if (newPosition.distanceTo(oldPosition) > 0.001) {
+            onObjectChange(selectedObjectId, { position: { x: newPosition.x, y: newPosition.y, z: newPosition.z } });
+        }
     };
 
     window.addEventListener('resize', handleResize);
     currentMount.addEventListener('mousedown', handleMouseDown);
-    controls.addEventListener('change', handlePan);
+    controls.addEventListener('end', handlePanEnd);
     setTimeout(handleResize, 100);
 
     // Cleanup
     return () => {
       window.removeEventListener('resize', handleResize);
       currentMount.removeEventListener('mousedown', handleMouseDown);
-      controls.removeEventListener('change', handlePan);
+      controls.removeEventListener('end', handlePanEnd);
       cancelAnimationFrame(animationFrameId);
-      if (currentMount) {
+      if (currentMount && renderer.domElement) {
         currentMount.removeChild(renderer.domElement);
       }
       renderer.dispose();
@@ -193,7 +198,7 @@ export function StudioScene({
         if (!mesh) {
             const geometry = new THREE.BoxGeometry(1, 1, 1);
             const material = new THREE.MeshStandardMaterial({ 
-              color: 0x6f42c1,
+              color: new THREE.Color().setHSL(Math.random(), 0.7, 0.6),
               emissive: 0x000000, 
             });
             mesh = new THREE.Mesh(geometry, material);
@@ -227,7 +232,7 @@ export function StudioScene({
             controlsRef.current.target.copy(selectedMesh.position);
         }
     }
-  }, [selectedObjectId]);
+  }, [selectedObjectId, objects]);
 
   return <div ref={mountRef} className="w-full h-full cursor-pointer" />;
 }
