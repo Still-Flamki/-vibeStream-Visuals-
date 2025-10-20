@@ -52,7 +52,7 @@ export default function HomePage() {
         <section className="container mx-auto py-16 md:py-24">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {features.map((feature, index) => (
-              <Card key={index} className="bg-card/50 backdrop-blur-sm border-primary/20 text-center">
+              <Card key={index} className="text-center">
                 <CardHeader className="items-center">
                   {feature.icon}
                   <CardTitle className="mt-4 font-headline">{feature.title}</CardTitle>
