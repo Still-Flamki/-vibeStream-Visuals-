@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useRef } from 'react';
@@ -52,7 +53,7 @@ export default function ControlsPanel() {
   const isDisabled = isLoading;
 
   return (
-    <Card>
+    <Card className="w-full max-w-7xl">
       <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
         <div className="flex-grow">
           <Tabs defaultValue="upload" className="w-full">
