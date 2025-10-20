@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useRef } from 'react';
@@ -12,14 +11,11 @@ import { Slider } from '@/components/ui/slider';
 import { Upload, Link, Play, Pause, Loader2, Music, Sparkles } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { VisualizationType } from '@/types';
-import type { ThreeSceneHandle } from '../visualizer/three-scene';
 import { ScrollArea } from '../ui/scroll-area';
+import { Label } from '../ui/label';
+import { Badge } from '../ui/badge';
 
-interface ControlsPanelProps {
-  threeSceneRef: React.RefObject<ThreeSceneHandle>;
-}
-
-export default function ControlsPanel({ threeSceneRef }: ControlsPanelProps) {
+export default function ControlsPanel() {
   const { 
     loadAudioFile, 
     loadAudioUrl,
@@ -33,6 +29,9 @@ export default function ControlsPanel({ threeSceneRef }: ControlsPanelProps) {
     setVisualizationType,
     isRecording,
     audioSrc,
+    controls,
+    setControls,
+    mood,
   } = useVisualizer();
   const { toast } = useToast();
 
@@ -65,7 +64,7 @@ export default function ControlsPanel({ threeSceneRef }: ControlsPanelProps) {
   const isDisabled = isRecording || isLoading;
 
   return (
-    <Card className="h-full flex flex-col bg-card/80 backdrop-blur-sm">
+    <Card className="h-full flex flex-col bg-card/80 backdrop-blur-sm border-primary/20">
       <CardHeader>
         <CardTitle className="font-headline text-2xl">Controls</CardTitle>
         <CardDescription>Load audio and shape your visuals.</CardDescription>
@@ -73,20 +72,6 @@ export default function ControlsPanel({ threeSceneRef }: ControlsPanelProps) {
       <CardContent className="flex-grow flex flex-col gap-4 overflow-hidden">
         <ScrollArea className="flex-grow pr-6 -mr-6">
           <div className="space-y-6">
-            <div className="space-y-2">
-              <h3 className="text-lg font-semibold flex items-center gap-2"><Sparkles className="text-primary"/> Visual Style</h3>
-               <Select onValueChange={(value: VisualizationType) => setVisualizationType(value)} defaultValue={visualizationType} disabled={isDisabled}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a visualization" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sphere_pulse">Sphere Pulse</SelectItem>
-                  <SelectItem value="warp_drive">Warp Drive</SelectItem>
-                  <SelectItem value="cosmic_web">Cosmic Web</SelectItem>
-                  <SelectItem value="tidal_wave">Tidal Wave</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
 
             <Tabs defaultValue="upload">
               <TabsList className="grid w-full grid-cols-2">
@@ -138,6 +123,50 @@ export default function ControlsPanel({ threeSceneRef }: ControlsPanelProps) {
                     <Slider value={[progress * 100]} onValueChange={handleSeek} disabled={isDisabled || !fileName}/>
                   </div>
                 </div>
+
+                <div className="space-y-2 pt-4">
+                  <h3 className="text-lg font-semibold flex items-center gap-2"><Sparkles className="text-primary"/> Visual Style</h3>
+                  <Select onValueChange={(value: VisualizationType) => setVisualizationType(value)} defaultValue={visualizationType} disabled={isDisabled}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a visualization" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sphere_pulse">Sphere Pulse</SelectItem>
+                      <SelectItem value="warp_drive">Warp Drive</SelectItem>
+                      <SelectItem value="cosmic_web">Cosmic Web</SelectItem>
+                      <SelectItem value="tidal_wave">Tidal Wave</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-4 pt-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">Vibe:</span>
+                      {isLoading ? (
+                          <Loader2 className="animate-spin" />
+                      ) : (
+                          <Badge variant="secondary" className="capitalize text-base px-3 py-1 bg-accent/20 text-accent-foreground border-accent/50">{mood}</Badge>
+                      )}
+                    </div>
+                    <div className='space-y-3'>
+                      <div className='space-y-1'>
+                        <Label htmlFor='particleSize' className="text-xs">Particle Size</Label>
+                        <Slider id="particleSize" min={0.1} max={2} step={0.1} value={[controls.particleSize]} onValueChange={([val]) => setControls(c => ({...c, particleSize: val}))} disabled={isDisabled} />
+                      </div>
+                      <div className='space-y-1'>
+                        <Label htmlFor='bassSensitivity' className="text-xs">Bass Reactivity</Label>
+                        <Slider id="bassSensitivity" min={0} max={2} step={0.1} value={[controls.bassSensitivity]} onValueChange={([val]) => setControls(c => ({...c, bassSensitivity: val}))} disabled={isDisabled} />
+                      </div>
+                      <div className='space-y-1'>
+                        <Label htmlFor='trebleSensitivity' className="text-xs">Treble Reactivity</Label>
+                        <Slider id="trebleSensitivity" min={0} max={2} step={0.1} value={[controls.trebleSensitivity]} onValueChange={([val]) => setControls(c => ({...c, trebleSensitivity: val}))} disabled={isDisabled} />
+                      </div>
+                      <div className='space-y-1'>
+                        <Label htmlFor='rotationSpeed' className="text-xs">Rotation Speed</Label>
+                        <Slider id="rotationSpeed" min={0} max={2} step={0.1} value={[controls.rotationSpeed]} onValueChange={([val]) => setControls(c => ({...c, rotationSpeed: val}))} disabled={isDisabled} />
+                      </div>
+                    </div>
+                  </div>
               </div>
             )}
           </div>
