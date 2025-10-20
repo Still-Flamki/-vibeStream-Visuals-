@@ -109,9 +109,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   }, [analyserNode]);
   
   useEffect(() => {
-    if (!streamDestinationRef.current) {
-      streamDestinationRef.current = Tone.context.createMediaStreamDestination();
-    }
+    streamDestinationRef.current = Tone.context.createMediaStreamDestination();
     return () => cleanup();
   }, [cleanup]);
 
@@ -134,16 +132,19 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
 
     try {
+      if (Tone.context.state !== 'running') {
+        await Tone.start();
+      }
+
       const newPlayer = new Tone.Player({
           url,
           onload: () => {
+              const newAnalyser = new Tone.Analyser('fft', 1024);
               player.current = newPlayer;
+              setAnalyserNode(newAnalyser);
               setAudioSrc(url);
               const trackName = name || url.split('/').pop() || "Audio Track";
               setFileName(trackName);
-              
-              const newAnalyser = new Tone.Analyser('fft', 1024);
-              setAnalyserNode(newAnalyser);
               
               analyzeAndSetMood(trackName);
               setIsLoading(false);
@@ -196,8 +197,8 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
               return;
           }
         }
-        animationFrameId.current = requestAnimationFrame(updateProgress);
     }
+    animationFrameId.current = requestAnimationFrame(updateProgress);
   }, []);
   
   const seek = useCallback((newProgress: number) => {
@@ -213,7 +214,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
 
   const togglePlay = useCallback(async () => {
     if (!player.current || !player.current.loaded) return;
-    
+
     if (Tone.context.state !== 'running') {
       await Tone.start();
     }
@@ -234,15 +235,16 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
         cancelAnimationFrame(animationFrameId.current);
       }
     } else {
-        if (progress >= 1) {
-          seek(0);
-        }
-        if (player.current.state === 'stopped') {
-            player.current.sync().start(0);
-        }
-        Tone.Transport.start();
-        setIsPlaying(true);
-        animationFrameId.current = requestAnimationFrame(updateProgress);
+      if (progress >= 1) {
+        seek(0);
+      }
+      // This ensures the player is synced and scheduled to start with the transport
+      if (player.current.state === 'stopped') {
+        player.current.sync().start(0);
+      }
+      Tone.Transport.start();
+      setIsPlaying(true);
+      requestAnimationFrame(updateProgress);
     }
   }, [updateProgress, progress, seek, analyserNode]);
 
