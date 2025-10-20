@@ -1,6 +1,6 @@
 
 import type { Analyser } from 'tone';
-import type { Mood, VisualizationType } from '@/types';
+import type { Mood, VisualizationType, ColorMode } from '@/types';
 
 export type VisualizerControls = {
   particleSize: number;
@@ -23,4 +23,6 @@ export type ThreeSceneProps = {
   visualizationType: VisualizationType;
   controls: VisualizerControls;
   aspectRatio: number;
+  colorMode: ColorMode;
+  customColor: string;
 };

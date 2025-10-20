@@ -8,9 +8,9 @@ import { VibeStreamIcon } from '../icons';
 import { useRef, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '../ui/dropdown-menu';
-import { Video, Download, Share2, CircleDot, Sparkles, Loader2, Crop, Undo2, Redo2, RotateCcw, RotateCw } from 'lucide-react';
+import { Video, Download, Share2, CircleDot, Sparkles, Loader2, Crop, Undo2, Redo2, RotateCcw, RotateCw, Palette } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { VideoQuality, VisualizationType } from '@/types';
+import type { VideoQuality, VisualizationType, ColorMode } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Badge } from '../ui/badge';
 import { Label } from '../ui/label';
@@ -19,6 +19,7 @@ import { PhoneFrame } from './phone-frame';
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
 import * as THREE from 'three';
 import { aspectRatios } from '@/contexts/visualizer-context';
+import { Input } from '../ui/input';
 
 export default function Visualizer() {
   const { 
@@ -36,6 +37,10 @@ export default function Visualizer() {
     stopRecording,
     aspectRatio,
     setAspectRatio,
+    colorMode,
+    setColorMode,
+    customColor,
+    setCustomColor,
   } = useVisualizer();
   const threeSceneRef = useRef<ThreeSceneHandle>(null);
   const { toast } = useToast();
@@ -111,6 +116,8 @@ export default function Visualizer() {
         visualizationType={visualizationType} 
         controls={controls}
         aspectRatio={numericAspectRatio}
+        colorMode={colorMode}
+        customColor={customColor}
       />
   );
 
@@ -209,22 +216,50 @@ export default function Visualizer() {
                       </div>
                   </div>
                   <div className='space-y-3 md:col-span-2'>
-                    <div className='space-y-1'>
-                      <Label className="text-xs">Bass Reactivity</Label>
-                      <Slider id="bassSensitivity" min={0} max={2} step={0.1} value={[controls.bassSensitivity]} onValueChange={([val]) => setControls(c => ({...c, bassSensitivity: val}))} disabled={isDisabled} />
+                    <div className='grid grid-cols-2 gap-4'>
+                      <div className='space-y-1'>
+                        <Label className="text-xs">Bass Reactivity</Label>
+                        <Slider id="bassSensitivity" min={0} max={2} step={0.1} value={[controls.bassSensitivity]} onValueChange={([val]) => setControls(c => ({...c, bassSensitivity: val}))} disabled={isDisabled} />
+                      </div>
+                      <div className='space-y-1'>
+                        <Label className="text-xs">Treble Reactivity</Label>                      
+                        <Slider id="trebleSensitivity" min={0} max={2} step={0.1} value={[controls.trebleSensitivity]} onValueChange={([val]) => setControls(c => ({...c, trebleSensitivity: val}))} disabled={isDisabled} />
+                      </div>
                     </div>
-                    <div className='space-y-1'>
-                      <Label className="text-xs">Treble Reactivity</Label>                      
-                      <Slider id="trebleSensitivity" min={0} max={2} step={0.1} value={[controls.trebleSensitivity]} onValueChange={([val]) => setControls(c => ({...c, trebleSensitivity: val}))} disabled={isDisabled} />
+                    <div className='grid grid-cols-2 gap-4'>
+                      <div className='space-y-1'>
+                        <Label className="text-xs">Particle Size</Label>
+                        <Slider id="particleSize" min={0.1} max={2} step={0.1} value={[controls.particleSize]} onValueChange={([val]) => setControls(c => ({...c, particleSize: val}))} disabled={isDisabled} />
+                      </div>
+                       <div className='space-y-1'>
+                        <Label className="text-xs">Bounce Intensity</Label>
+                        <Slider id="bounceIntensity" min={0} max={5} step={0.1} value={[controls.bounceIntensity]} onValueChange={([val]) => setControls(c => ({...c, bounceIntensity: val}))} disabled={isDisabled} />
+                      </div>
                     </div>
-                    <div className='space-y-1'>
-                      <Label className="text-xs">Particle Size</Label>
-                      <Slider id="particleSize" min={0.1} max={2} step={0.1} value={[controls.particleSize]} onValueChange={([val]) => setControls(c => ({...c, particleSize: val}))} disabled={isDisabled} />
-                    </div>
-                     <div className='space-y-1'>
-                      <Label className="text-xs">Bounce Intensity</Label>
-                      <Slider id="bounceIntensity" min={0} max={5} step={0.1} value={[controls.bounceIntensity]} onValueChange={([val]) => setControls(c => ({...c, bounceIntensity: val}))} disabled={isDisabled} />
-                    </div>
+                     <div className="space-y-2">
+                        <h3 className="text-sm font-semibold flex items-center gap-2 pt-2"><Palette className="text-primary h-4 w-4"/> Color Mode</h3>
+                        <div className="flex items-center gap-2">
+                           <Select onValueChange={(value: ColorMode) => setColorMode(value)} defaultValue={colorMode} disabled={isDisabled}>
+                              <SelectTrigger className="flex-grow">
+                                  <SelectValue placeholder="Select a color mode" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                  <SelectItem value="mood">Mood-Based</SelectItem>
+                                  <SelectItem value="multicolor">Multicolor</SelectItem>
+                                  <SelectItem value="custom">Custom</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            {colorMode === 'custom' && (
+                              <Input 
+                                type="color" 
+                                value={customColor}
+                                onChange={(e) => setCustomColor(e.target.value)}
+                                className="w-12 h-10 p-1"
+                                disabled={isDisabled}
+                              />
+                            )}
+                        </div>
+                      </div>
                   </div>
                   <div className='space-y-3 md:col-span-1'>
                      <div className='space-y-1'>

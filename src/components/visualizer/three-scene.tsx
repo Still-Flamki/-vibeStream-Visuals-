@@ -21,7 +21,7 @@ export interface ThreeSceneHandle {
   setAspectRatio: (aspect: number) => void;
 }
 
-const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode, isPlaying, mood, visualizationType, controls, aspectRatio }, ref) => {
+const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode, isPlaying, mood, visualizationType, controls, aspectRatio, colorMode, customColor }, ref) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -33,10 +33,10 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
   const animationFrameIdRef = useRef<number>(0);
 
   // Store a mutable reference to the props that the animation loop can access
-  const latestProps = useRef({ analyserNode, isPlaying, mood, visualizationType, controls, aspectRatio });
+  const latestProps = useRef({ analyserNode, isPlaying, mood, visualizationType, controls, aspectRatio, colorMode, customColor });
   useEffect(() => {
-    latestProps.current = { analyserNode, isPlaying, mood, visualizationType, controls, aspectRatio };
-  }, [analyserNode, isPlaying, mood, visualizationType, controls, aspectRatio]);
+    latestProps.current = { analyserNode, isPlaying, mood, visualizationType, controls, aspectRatio, colorMode, customColor };
+  }, [analyserNode, isPlaying, mood, visualizationType, controls, aspectRatio, colorMode, customColor]);
 
 
   useImperativeHandle(ref, () => ({
@@ -63,7 +63,7 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
   const updateVisuals = () => {
     if (!visualRef.current) return;
 
-    const { analyserNode, isPlaying, mood, visualizationType, controls } = latestProps.current;
+    const { analyserNode, isPlaying, mood, visualizationType, controls, colorMode, customColor } = latestProps.current;
     const geometry = (visualRef.current.geometry as THREE.BufferGeometry);
     if (!geometry) return;
     const positionAttribute = geometry.getAttribute('position');
@@ -98,6 +98,8 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
     trebleBoost = (isFinite(trebleBoost) ? trebleBoost : 0) * controls.bounceIntensity;
 
     const time = clockRef.current.getElapsedTime();
+    
+    const customColorObj = new THREE.Color(customColor);
     const { c1, c2 } = moodColors[mood];
 
     for (let i = 0; i < positionAttribute.count; i++) {
@@ -162,8 +164,21 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
         }
 
         if (colorAttribute) {
-            const mixFactor = (iy / 100 + 1) / 2;
-            const color = c1.clone().lerp(c2, isNaN(mixFactor) ? 0.5 : mixFactor);
+            let color = new THREE.Color();
+            switch(colorMode) {
+                case 'mood':
+                    const mixFactor = (iy / 100 + 1) / 2;
+                    color = c1.clone().lerp(c2, isNaN(mixFactor) ? 0.5 : mixFactor);
+                    break;
+                case 'multicolor':
+                    const hue = (time * 0.1 + ix * 0.01) % 1;
+                    color.setHSL(hue, 1, 0.5);
+                    break;
+                case 'custom':
+                    color = customColorObj;
+                    break;
+            }
+            
             const colorBoost = 1 + trebleBoost * 2 * Math.random();
             color.multiplyScalar(isFinite(colorBoost) ? colorBoost : 1);
             colorAttribute.setXYZ(i, color.r, color.g, color.b);

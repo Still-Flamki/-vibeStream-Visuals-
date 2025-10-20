@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useState, useRef, useEffect, useCallback, type ReactNode } from 'react';
 import * as Tone from 'tone';
-import type { Mood, VisualizationType, VideoQuality } from '@/types';
+import type { Mood, VisualizationType, VideoQuality, ColorMode } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import type { VisualizerControls } from '@/components/visualizer/visualizer-props';
 import { type ThreeSceneHandle } from '@/components/visualizer/three-scene';
@@ -30,6 +30,10 @@ interface VisualizerContextType {
   stopRecording: () => void;
   aspectRatio: string;
   setAspectRatio: (ratio: string) => void;
+  colorMode: ColorMode;
+  setColorMode: (mode: ColorMode) => void;
+  customColor: string;
+  setCustomColor: (color: string) => void;
 }
 
 const VisualizerContext = createContext<VisualizerContextType | undefined>(undefined);
@@ -73,6 +77,8 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     }
   });
   const [isRecording, setIsRecording] = useState(false);
+  const [colorMode, setColorMode] = useState<ColorMode>('mood');
+  const [customColor, setCustomColor] = useState('#ffffff');
 
   const player = useRef<Tone.Player | null>(null);
   const analyser = useRef<Tone.Analyser | null>(null);
@@ -142,7 +148,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       
       const newPlayer = new Tone.Player({
           url,
-          onload: () => {
+          onload: async () => {
               const newAnalyser = new Tone.Analyser('fft', 1024);
               analyser.current = newAnalyser;
               player.current = newPlayer;
@@ -152,7 +158,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
               const trackName = name || url.split('/').pop() || "Audio Track";
               setFileName(trackName);
               
-              analyzeAndSetMood(trackName);
+              await analyzeAndSetMood(trackName);
               setIsLoading(false);
               toast({ title: "Audio Ready", description: `"${trackName}" is loaded. Press play to start.` });
           },
@@ -229,8 +235,8 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   
     // Connect nodes on first play
     if (!isConnected.current) {
-      if (analyserNode) {
-        player.current.connect(analyserNode);
+      if (analyser.current) {
+        player.current.connect(analyser.current);
       }
       if (streamDestinationRef.current) {
         player.current.connect(streamDestinationRef.current);
@@ -251,7 +257,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       }
       
       // Always ensure the player is synced before starting the transport
-      if (player.current.state === 'stopped' || Tone.Transport.state === 'stopped') {
+      if (player.current.state === 'stopped' || Tone.Transport.state === 'stopped' || Tone.Transport.state === 'paused') {
         player.current.sync().start(0);
       }
   
@@ -259,7 +265,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       setIsPlaying(true);
       requestAnimationFrame(updateProgress);
     }
-  }, [updateProgress, progress, seek, analyserNode]);
+  }, [updateProgress, progress, seek]);
 
   const startRecording = (threeSceneRef: React.RefObject<ThreeSceneHandle>, quality: VideoQuality, onStop?: () => void) => {
     const canvas = threeSceneRef.current?.getCanvas();
@@ -312,7 +318,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
         a.href = url;
         a.download = `vibestream-visuals-${quality}-${width}x${height}-${new Date().toISOString()}.webm`;
         document.body.appendChild(a);
-        a.click();
+a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
         recordedChunksRef.current = [];
@@ -341,7 +347,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     loadAudioUrl,
     togglePlay,
     seek,
-    analyserNode: analyserNode,
+    analyserNode,
     audioSrc,
     fileName,
     isPlaying,
@@ -357,6 +363,10 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     stopRecording,
     aspectRatio,
     setAspectRatio,
+    colorMode,
+    setColorMode,
+    customColor,
+    setCustomColor,
   };
 
   return (
