@@ -45,7 +45,7 @@ export default function HomePage() {
       <Header />
       <main className="flex-grow">
         {/* Hero Section */}
-        <section className="container mx-auto py-20 md:py-32">
+        <section className="container mx-auto pt-12 md:pt-20 pb-20">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="flex flex-col items-start text-left">
               <VibeStreamIcon className="h-24 w-24 text-primary mb-6" />
