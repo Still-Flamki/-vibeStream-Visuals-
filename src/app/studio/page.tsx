@@ -1,12 +1,13 @@
 
 'use client';
 
-import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupLabel, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
+import { Sidebar, SidebarContent, SidebarInset, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { Card, CardContent } from '@/components/ui/card';
 import { SlidersHorizontal, Shapes, Clock, Box, Layers, Camera } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import Header from '@/components/layout/header';
 import Footer from '@/components/layout/footer';
+import { StudioScene } from '@/components/studio/studio-scene';
 
 export default function StudioPage() {
   return (
@@ -66,8 +67,8 @@ export default function StudioPage() {
             </SidebarContent>
         </Sidebar>
         <SidebarInset className="flex-grow flex flex-col p-4 gap-4">
-            <main className="flex-grow flex items-center justify-center rounded-lg bg-black/30 border border-border">
-                <p className="text-muted-foreground">3D Viewport</p>
+            <main className="flex-grow flex items-center justify-center rounded-lg bg-black/30 border border-border overflow-hidden">
+                <StudioScene />
             </main>
              <Card className="h-48">
                 <CardContent className="p-4 flex items-center justify-center h-full">
