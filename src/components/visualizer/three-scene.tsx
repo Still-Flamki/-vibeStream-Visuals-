@@ -6,13 +6,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { Analyser } from 'tone';
 import type { Mood, VisualizationType } from '@/types';
+import type { VisualizerControls, ThreeSceneProps } from './visualizer-props';
 
-type ThreeSceneProps = {
-  analyserNode: Analyser | null;
-  isPlaying: boolean;
-  mood: Mood;
-  visualizationType: VisualizationType;
-};
 
 const moodColors: Record<Mood, { c1: THREE.Color; c2: THREE.Color }> = {
   happy: { c1: new THREE.Color('#FFD700'), c2: new THREE.Color('#FFA500') },
@@ -21,7 +16,7 @@ const moodColors: Record<Mood, { c1: THREE.Color; c2: THREE.Color }> = {
   energetic: { c1: new THREE.Color('#FF00FF'), c2: new THREE.Color('#FF4500') },
 };
 
-export default function ThreeScene({ analyserNode, isPlaying, mood, visualizationType }: ThreeSceneProps) {
+export default function ThreeScene({ analyserNode, isPlaying, mood, visualizationType, controls }: ThreeSceneProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -35,12 +30,13 @@ export default function ThreeScene({ analyserNode, isPlaying, mood, visualizatio
   const animate = () => {
     requestAnimationFrame(animate);
 
+    if (!sceneRef.current || !cameraRef.current || !rendererRef.current) return;
+    
+    controlsRef.current?.update();
+
     if (!visualRef.current) {
-      if (sceneRef.current && cameraRef.current && rendererRef.current) {
-        controlsRef.current?.update();
         rendererRef.current.render(sceneRef.current, cameraRef.current);
-      }
-      return;
+        return;
     }
 
     const positionAttribute = (visualRef.current.geometry as THREE.BufferGeometry).getAttribute('position');
@@ -48,11 +44,8 @@ export default function ThreeScene({ analyserNode, isPlaying, mood, visualizatio
     const initialPositions = initialPositionsRef.current!;
 
     if (!positionAttribute || !initialPositions) {
-      if (sceneRef.current && cameraRef.current && rendererRef.current) {
-        controlsRef.current?.update();
         rendererRef.current.render(sceneRef.current, cameraRef.current);
-      }
-      return;
+        return;
     }
 
     let bassBoost = 0;
@@ -63,13 +56,13 @@ export default function ThreeScene({ analyserNode, isPlaying, mood, visualizatio
       const rawFrequencyData = analyserNode.getValue();
       if (rawFrequencyData instanceof Float32Array) {
         frequencyData = rawFrequencyData;
-        const lowerHalf = frequencyData.slice(0, frequencyData.length / 2);
+        const lowerHalf = frequencyData.slice(0, frequencyData.length / 4);
         const lowerAvg = lowerHalf.reduce((a, b) => a + Math.abs(b), 0) / lowerHalf.length;
         const upperHalf = frequencyData.slice(frequencyData.length / 2);
         const upperAvg = upperHalf.reduce((a, b) => a + Math.abs(b), 0) / upperHalf.length;
 
-        bassBoost = isFinite(lowerAvg) ? (Math.abs(lowerAvg) / 100) : 0;
-        trebleBoost = isFinite(upperAvg) ? (Math.abs(upperAvg) / 100) : 0;
+        bassBoost = isFinite(lowerAvg) ? (Math.abs(lowerAvg) / 100) * controls.bassSensitivity : 0;
+        trebleBoost = isFinite(upperAvg) ? (Math.abs(upperAvg) / 100) * controls.trebleSensitivity : 0;
       }
     }
 
@@ -149,13 +142,10 @@ export default function ThreeScene({ analyserNode, isPlaying, mood, visualizatio
     if (colorAttribute) colorAttribute.needsUpdate = true;
 
     if (visualRef.current) {
-        visualRef.current.rotation.y += 0.0005 + bassBoost * 0.001;
+        visualRef.current.rotation.y += (0.0005 + bassBoost * 0.001) * controls.rotationSpeed;
     }
     
-    controlsRef.current?.update();
-    if(sceneRef.current && cameraRef.current && rendererRef.current) {
-        rendererRef.current.render(sceneRef.current, cameraRef.current);
-    }
+    rendererRef.current.render(sceneRef.current, cameraRef.current);
   };
   
   // Setup and teardown
@@ -225,9 +215,7 @@ export default function ThreeScene({ analyserNode, isPlaying, mood, visualizatio
     }
     
     let geometry: THREE.BufferGeometry;
-    let material: THREE.PointsMaterial | THREE.MeshBasicMaterial;
     let newVisual: THREE.Points | THREE.Mesh;
-    
     let particleCount: number;
 
     switch (visualizationType) {
@@ -276,6 +264,7 @@ export default function ThreeScene({ analyserNode, isPlaying, mood, visualizatio
             initialPositionsRef.current = new Float32Array(webPositions);
             break;
         case 'tidal_wave':
+        default:
             const size = 200;
             const segments = 100;
             const wavePositions = new Float32Array(segments * segments * 3);
@@ -299,8 +288,8 @@ export default function ThreeScene({ analyserNode, isPlaying, mood, visualizatio
     const colors = new Float32Array(positionAttribute.count * 3);
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     
-    material = new THREE.PointsMaterial({
-        size: visualizationType === 'tidal_wave' ? 1.5 : 0.8,
+    let material = new THREE.PointsMaterial({
+        size: controls.particleSize * (visualizationType === 'tidal_wave' ? 1.5 : 1),
         vertexColors: true,
         blending: THREE.AdditiveBlending,
         transparent: true,
@@ -311,7 +300,7 @@ export default function ThreeScene({ analyserNode, isPlaying, mood, visualizatio
     visualRef.current = newVisual;
     sceneRef.current.add(newVisual);
 
-  }, [visualizationType]);
+  }, [visualizationType, controls.particleSize]);
   
 
   return <div ref={mountRef} className="w-full h-full" />;

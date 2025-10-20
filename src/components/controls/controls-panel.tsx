@@ -13,6 +13,7 @@ import { Slider } from '@/components/ui/slider';
 import { Upload, Link, Play, Pause, Download, Share2, Loader2, Music, Sparkles } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { VisualizationType } from '@/types';
+import { Label } from '../ui/label';
 
 export default function ControlsPanel() {
   const { 
@@ -26,7 +27,9 @@ export default function ControlsPanel() {
     progress,
     seek,
     visualizationType,
-    setVisualizationType
+    setVisualizationType,
+    controls,
+    setControls
   } = useVisualizer();
   const { toast } = useToast();
 
@@ -153,6 +156,26 @@ export default function ControlsPanel() {
                   <Badge variant="secondary" className="capitalize text-base px-3 py-1 bg-accent/20 text-accent-foreground border-accent">{mood}</Badge>
               )}
           </div>
+          
+          <div className="space-y-4 pt-2">
+            <div className='space-y-2'>
+              <Label htmlFor='particleSize'>Particle Size</Label>
+              <Slider id="particleSize" min={0.1} max={2} step={0.1} value={[controls.particleSize]} onValueChange={([val]) => setControls(c => ({...c, particleSize: val}))} />
+            </div>
+            <div className='space-y-2'>
+              <Label htmlFor='bassSensitivity'>Bass Reactivity</Label>
+              <Slider id="bassSensitivity" min={0} max={2} step={0.1} value={[controls.bassSensitivity]} onValueChange={([val]) => setControls(c => ({...c, bassSensitivity: val}))} />
+            </div>
+            <div className='space-y-2'>
+              <Label htmlFor='trebleSensitivity'>Treble Reactivity</Label>
+              <Slider id="trebleSensitivity" min={0} max={2} step={0.1} value={[controls.trebleSensitivity]} onValueChange={([val]) => setControls(c => ({...c, trebleSensitivity: val}))} />
+            </div>
+             <div className='space-y-2'>
+              <Label htmlFor='rotationSpeed'>Rotation Speed</Label>
+              <Slider id="rotationSpeed" min={0} max={2} step={0.1} value={[controls.rotationSpeed]} onValueChange={([val]) => setControls(c => ({...c, rotationSpeed: val}))} />
+            </div>
+          </div>
+
         </div>
 
         <div className="space-y-2 flex-grow flex flex-col justify-end">

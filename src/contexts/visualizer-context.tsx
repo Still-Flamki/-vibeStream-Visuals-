@@ -5,6 +5,7 @@ import React, { createContext, useContext, useState, useRef, useEffect, useCallb
 import * as Tone from 'tone';
 import type { Mood, VisualizationType } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import type { VisualizerControls } from '@/components/visualizer/visualizer-props';
 
 interface VisualizerContextType {
   loadAudioFile: (file: File) => void;
@@ -20,6 +21,8 @@ interface VisualizerContextType {
   progress: number;
   visualizationType: VisualizationType;
   setVisualizationType: (type: VisualizationType) => void;
+  controls: VisualizerControls;
+  setControls: React.Dispatch<React.SetStateAction<VisualizerControls>>;
 }
 
 const VisualizerContext = createContext<VisualizerContextType | undefined>(undefined);
@@ -33,6 +36,12 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [visualizationType, setVisualizationType] = useState<VisualizationType>('sphere_pulse');
+  const [controls, setControls] = useState<VisualizerControls>({
+    particleSize: 0.8,
+    bassSensitivity: 1.0,
+    trebleSensitivity: 1.0,
+    rotationSpeed: 0.5,
+  });
 
   const player = useRef<Tone.Player | null>(null);
   const analyser = useRef<Tone.Analyser | null>(null);
@@ -63,7 +72,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   }, [cleanup]);
 
   const analyzeAndSetMood = useCallback(async () => {
-    if (!player.current?.loaded || !analyser.current) return;
+    if (!analyser.current) return;
 
     try {
       // Get the frequency data directly from the live analyser
@@ -176,10 +185,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     } else {
        if (player.current.state === 'stopped' || Tone.Transport.state === 'paused') {
           if (!player.current.synced) {
-            player.current.sync();
-          }
-          if(player.current.state === 'stopped') {
-            player.current.start(0, Tone.Transport.seconds);
+            player.current.sync().start(0);
           }
         }
       Tone.Transport.start();
@@ -213,6 +219,8 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     progress,
     visualizationType,
     setVisualizationType,
+    controls,
+    setControls,
   };
 
   return (
