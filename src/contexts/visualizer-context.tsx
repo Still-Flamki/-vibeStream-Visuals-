@@ -41,8 +41,8 @@ const qualitySettings = {
 };
 
 export const aspectRatios: { [key: string]: { label: string; value: number, isMobile: boolean } } = {
-  '16:9': { label: 'Widescreen (16:9)', value: 16 / 9, isMobile: false },
   '2.39:1': { label: 'Cinematic (2.39:1)', value: 2.39 / 1, isMobile: false },
+  '16:9': { label: 'Widescreen (16:9)', value: 16 / 9, isMobile: false },
 };
 
 export function VisualizerProvider({ children }: { children: ReactNode }) {
@@ -93,6 +93,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
     }
     
     if (analyserNode) {
+        analyserNode.disconnect();
         analyserNode.dispose();
         setAnalyserNode(null);
     }
@@ -126,9 +127,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   const loadAudio = useCallback(async (url: string, name?: string) => {
     if (isLoading) return;
     
-    if (player.current) {
-      cleanup();
-    }
+    cleanup();
     setIsLoading(true);
 
     try {
@@ -213,13 +212,15 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const togglePlay = useCallback(async () => {
-    if (!player.current || !player.current.loaded) return;
+    if (!player.current || !player.current.loaded || !analyserNode) {
+      return;
+    }
 
     if (Tone.context.state !== 'running') {
       await Tone.start();
     }
 
-    if (!isConnected.current && analyserNode) {
+    if (!isConnected.current) {
       player.current.connect(analyserNode);
       if (streamDestinationRef.current) {
         player.current.connect(streamDestinationRef.current);
@@ -238,10 +239,11 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       if (progress >= 1) {
         seek(0);
       }
-      // This ensures the player is synced and scheduled to start with the transport
-      if (player.current.state === 'stopped') {
+      
+      if (player.current.state === 'stopped' || Tone.Transport.state === 'stopped') {
         player.current.sync().start(0);
       }
+
       Tone.Transport.start();
       setIsPlaying(true);
       requestAnimationFrame(updateProgress);
@@ -360,5 +362,3 @@ export function useVisualizer(): VisualizerContextType {
   }
   return context;
 }
-
-    
