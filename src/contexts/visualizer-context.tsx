@@ -37,8 +37,8 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Initialize Tone.js components
     analyser.current = new Tone.Analyser('fft', 2048);
-    player.current = new Tone.Player().toDestination();
-    player.current.connect(analyser.current);
+    // The player connects to both the analyzer and the destination (speakers)
+    player.current = new Tone.Player().chain(analyser.current, Tone.Destination);
     
     // Stop and clean up on component unmount
     return () => {
@@ -86,6 +86,12 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
       }
 
       await Tone.start();
+      
+      // Ensure the buffer is loaded before playing
+      if (!player.current.loaded) {
+          await player.current.load(player.current.buffer.url);
+      }
+      
       player.current.start(Tone.now(), 0);
       Tone.Transport.start();
       
@@ -185,7 +191,7 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
   
   const togglePlay = useCallback(async () => {
     if (!player.current || !player.current.loaded) return;
-
+  
     if (isPlaying) {
       Tone.Transport.pause();
       setIsPlaying(false);
@@ -202,11 +208,12 @@ export function VisualizerProvider({ children }: { children: ReactNode }) {
           setProgress(0);
       }
       
-      Tone.Transport.start(undefined, startTime);
+      Tone.Transport.start(Tone.now(), startTime);
       setIsPlaying(true);
       animationFrameId.current = requestAnimationFrame(updateProgress);
     }
   }, [isPlaying, updateProgress]);
+
 
   const seek = useCallback((progress: number) => {
     if (player.current && player.current.loaded) {
