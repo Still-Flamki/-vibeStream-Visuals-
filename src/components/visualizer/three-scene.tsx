@@ -105,15 +105,19 @@ export default function ThreeScene({ analyserNode, isPlaying, mood }: ThreeScene
 
             for (let i = 0; i < particleCount; i++) {
                 const i3 = i * 3;
-                const r = Math.sqrt(initialPositions[i3]**2 + initialPositions[i3+1]**2 + initialPositions[i3+2]**2);
+                
+                const ix = initialPositions[i3];
+                const iy = initialPositions[i3 + 1];
+                const iz = initialPositions[i3 + 2];
+                const r = Math.sqrt(ix*ix + iy*iy + iz*iz);
                 
                 const newRadius = r + bassBoost * (frequencyData[i % frequencyData.length] / 20);
                 
                 let x = 0, y = 0, z = 0;
                 if (r > 0) {
-                    x = (initialPositions[i3] / r) * newRadius;
-                    y = (initialPositions[i3 + 1] / r) * newRadius;
-                    z = (initialPositions[i3 + 2] / r) * newRadius;
+                    x = (ix / r) * newRadius;
+                    y = (iy / r) * newRadius;
+                    z = (iz / r) * newRadius;
                 }
 
                 // Ensure values are not NaN before setting
@@ -122,8 +126,8 @@ export default function ThreeScene({ analyserNode, isPlaying, mood }: ThreeScene
                 }
 
 
-                const mixFactor = (initialPositions[i3+1] / r + 1) / 2;
-                const color = c1.clone().lerp(c2, mixFactor);
+                const mixFactor = (iy / r + 1) / 2;
+                const color = c1.clone().lerp(c2, isNaN(mixFactor) ? 0.5 : mixFactor);
                 color.multiplyScalar(1 + trebleBoost * Math.random());
                 colorAttribute.setXYZ(i, color.r, color.g, color.b);
             }
@@ -155,7 +159,7 @@ export default function ThreeScene({ analyserNode, isPlaying, mood }: ThreeScene
       geometry.dispose();
       material.dispose();
     };
-  }, [isPlaying, mood]); // Re-run effect only when key props change
+  }, [isPlaying, mood, analyserNode]);
 
   return <div ref={mountRef} className="w-full h-full" />;
 }
