@@ -326,7 +326,18 @@ const ThreeScene = forwardRef<ThreeSceneHandle, ThreeSceneProps>(({ analyserNode
     visualRef.current = newVisual;
     sceneRef.current.add(newVisual);
 
-  }, [visualizationType, controls.particleSize]);
+  }, [visualizationType]);
+
+  // Update material based on controls
+  useEffect(() => {
+    if (visualRef.current) {
+      const material = (visualRef.current as THREE.Points).material as THREE.PointsMaterial;
+      if (material) {
+        material.size = controls.particleSize * (visualizationType === 'tidal_wave' ? 1.5 : 1);
+        material.needsUpdate = true;
+      }
+    }
+  }, [controls, visualizationType]);
   
 
   return <div ref={mountRef} className="w-full h-full" />;
